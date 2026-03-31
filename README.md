@@ -1,4 +1,3 @@
-```markdown
 # Telecom Churn Prediction
 
 End-to-end machine learning project predicting customer churn for a telecom company.
@@ -6,7 +5,7 @@ Built with XGBoost, FastAPI, and Streamlit.
 
 ## Live Demo
 
-[Open the app](https://wissemhammami-telecom-churn-prediction.streamlit.app)
+[Open the app](https://churn-wissem.streamlit.app)
 
 ---
 
@@ -34,7 +33,6 @@ and take targeted retention actions.
 ---
 
 ## Project Structure
-
 ```
 TELECOM-CHURN-PREDICTION/
 │
@@ -84,7 +82,6 @@ TELECOM-CHURN-PREDICTION/
 ---
 
 ## Installation
-
 ```bash
 git clone https://github.com/wissemhammami/telecom-churn-prediction.git
 cd telecom-churn-prediction
@@ -134,7 +131,6 @@ pytest src/tests/test_predict.py -v
 ---
 
 ## Docker
-
 ```bash
 # Build
 docker build -t churn-app .
@@ -155,7 +151,6 @@ docker run -p 8000:8000 -p 8501:8501 churn-app
 | POST   | `/interpret`      | SHAP explanation for a customer      |
 
 **Example request**
-
 ```bash
 curl -X POST "http://localhost:8000/predict" \
   -H "Content-Type: application/json" \
@@ -183,7 +178,6 @@ curl -X POST "http://localhost:8000/predict" \
 ```
 
 **Example response**
-
 ```json
 {
   "churn_label": 1,
@@ -195,7 +189,6 @@ curl -X POST "http://localhost:8000/predict" \
 ---
 
 ## ML Pipeline
-
 ```
 Raw Data
   └── Preprocessing         → TotalCharges fix, target encoding
@@ -236,4 +229,3 @@ Raw Data
 **Wissem Hammami**  
 Machine Learning Engineer | Data Science | ESSAI, University of Carthage  
 [GitHub](https://github.com/wissemhammami)
-```
