@@ -1,0 +1,44 @@
+import os
+import pandas as pd
+
+# -------------------------
+# 1️⃣ Paths
+# -------------------------
+BASE_DIR = os.path.abspath(".")  # project root
+NEW_DIR = os.path.join(BASE_DIR, "data", "new")
+os.makedirs(NEW_DIR, exist_ok=True)  # create folder if it doesn't exist
+
+CSV_PATH = os.path.join(NEW_DIR, "new_customers.csv")
+
+# -------------------------
+# 2️⃣ Sample new customer data
+# -------------------------
+data = {
+    "gender": ["Female", "Male", "Female"],
+    "SeniorCitizen": [0, 1, 0],
+    "Partner": ["Yes", "No", "Yes"],
+    "Dependents": ["No", "No", "Yes"],
+    "tenure": [5, 42, 71],
+    "PhoneService": ["Yes", "Yes", "Yes"],
+    "MultipleLines": ["No", "Yes", "No"],
+    "InternetService": ["Fiber optic", "DSL", "Fiber optic"],
+    "OnlineSecurity": ["No", "Yes", "Yes"],
+    "OnlineBackup": ["Yes", "Yes", "No"],
+    "DeviceProtection": ["No", "Yes", "Yes"],
+    "TechSupport": ["No", "Yes", "No"],
+    "StreamingTV": ["Yes", "No", "Yes"],
+    "StreamingMovies": ["No", "No", "Yes"],
+    "Contract": ["Month-to-month", "One year", "Two year"],
+    "PaperlessBilling": ["Yes", "No", "Yes"],
+    "PaymentMethod": ["Electronic check", "Bank transfer", "Credit card"],
+    "MonthlyCharges": [85.6, 65.4, 104.2],
+    "TotalCharges": [428.0, 2746.8, 7412.0]
+}
+
+df = pd.DataFrame(data)
+
+# -------------------------
+# 3️⃣ Save CSV
+# -------------------------
+df.to_csv(CSV_PATH, index=False)
+print(f"✅ New customers CSV created at: {CSV_PATH}")
