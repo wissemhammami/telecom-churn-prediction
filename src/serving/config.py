@@ -17,7 +17,6 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # -------------------------
 DATA_DIR = os.path.join(BASE_DIR, "data")
 RAW_DATA_PATH = os.path.join(DATA_DIR, "raw", "churn.csv")
-PROCESSED_DATA_PATH = os.path.join(DATA_DIR, "processed", "churn_processed.csv")
 NEW_CUSTOMERS_PATH = os.path.join(DATA_DIR, "new", "new_customers.csv")
 PREDICTIONS_PATH = os.path.join(DATA_DIR, "new", "new_customers_predictions.csv")
 
@@ -33,9 +32,6 @@ METADATA_PATH = os.path.join(MODELS_DIR, "model_metadata.json")
 # Chemins — Reports
 # -------------------------
 REPORTS_DIR = os.path.join(BASE_DIR, "reports")
-SERVING_LOG_PATH = os.path.join(REPORTS_DIR, "serving.log")
-FEATURE_IMPORTANCE_PATH = os.path.join(REPORTS_DIR, "feature_importance.png")
-SHAP_SUMMARY_PATH = os.path.join(REPORTS_DIR, "shap_summary.png")
 
 # -------------------------
 # Constantes ML

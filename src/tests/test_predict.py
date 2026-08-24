@@ -5,13 +5,12 @@ Tests unitaires — Telecom Churn Prediction
 Teste les fonctions principales du pipeline d'inférence.
 
 Usage :
-    pytest tests/test_predict.py -v
+    pytest src/tests/test_predict.py -v
 """
 
-import pytest
 import numpy as np
 import pandas as pd
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 
 # -------------------------
