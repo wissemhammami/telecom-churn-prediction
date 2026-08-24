@@ -25,10 +25,9 @@ PREDICTIONS_PATH = os.path.join(DATA_DIR, "new", "new_customers_predictions.csv"
 # Chemins — Modèles
 # -------------------------
 MODELS_DIR = os.path.join(BASE_DIR, "models")
-MODEL_PATH = os.path.join(MODELS_DIR, "xgb_churn_model.pkl")
-PIPELINE_PATH = os.path.join(MODELS_DIR, "preprocessor_pipeline.pkl")
-SCALER_PATH = os.path.join(MODELS_DIR, "scaler.pkl")
+MODEL_PATH = os.path.join(MODELS_DIR, "champion_model.pkl")
 FEATURES_PATH = os.path.join(MODELS_DIR, "feature_columns.pkl")
+METADATA_PATH = os.path.join(MODELS_DIR, "model_metadata.json")
 
 # -------------------------
 # Chemins — Reports

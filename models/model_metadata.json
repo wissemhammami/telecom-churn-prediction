@@ -1,0 +1,13 @@
+{
+  "model_name": "RandomForest",
+  "selection_metric": "roc_auc",
+  "mean_cv_roc_auc": 0.8476838924202592,
+  "cv_std": 0.009975143945960293,
+  "threshold": 0.5,
+  "random_state": 42,
+  "test_roc_auc": 0.8442338990932342,
+  "test_pr_auc": 0.6520336608109241,
+  "test_f1": 0.6413867822318526,
+  "test_precision": 0.5391621129326047,
+  "test_recall": 0.7914438502673797
+}

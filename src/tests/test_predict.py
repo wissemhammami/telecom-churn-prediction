@@ -266,3 +266,37 @@ class TestFeatureEngineering:
         df = ajouter_contrat_long(df)
 
         assert df["ContratLong"].iloc[0] == 0
+
+
+class TestChampionAPI:
+    """Smoke tests for the deployed champion artifact and API handlers."""
+
+    def test_health_reports_loaded_artifacts(self):
+        from src.serving.main import health
+
+        result = health()
+        assert result["model_loaded"] is True
+        assert result["pipeline_loaded"] is True
+
+    def test_prediction_and_batch_contracts(self):
+        from src.serving.main import interpret, predict, predict_batch
+        from src.serving.schemas import BatchCustomerInput, CustomerInput
+
+        customer = CustomerInput(**CLIENT_EXEMPLE)
+        single = predict(customer)
+        batch = predict_batch(BatchCustomerInput(customers=[customer, customer]))
+
+        assert 0 <= single.churn_probability <= 1
+        assert single.churn_label in [0, 1]
+        assert batch.total == 2
+        assert len(batch.results) == 2
+        explanation = interpret(customer)
+        assert explanation["churn_probability"] == single.churn_probability
+        assert explanation["top_features"]
+
+    def test_shared_preparation_removes_unwanted_columns(self):
+        from src.features.preprocessing import preparer_features
+
+        prepared = preparer_features(pd.DataFrame([{**CLIENT_EXEMPLE, "customerID": "abc", "Churn": "Yes"}]))
+        assert "customerID" not in prepared.columns
+        assert "Churn" not in prepared.columns

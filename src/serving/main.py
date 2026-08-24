@@ -1,7 +1,6 @@
 # src/serving/main.py
 
 import logging
-from pathlib import Path
 
 import joblib
 import pandas as pd
@@ -12,24 +11,20 @@ from src.serving.schemas import (
     PredictionOutput, BatchPredictionOutput,
 )
 from src.serving.utils import niveau_risque
-from src.features.feature_engineering import appliquer_feature_engineering
+from src.features.preprocessing import preparer_features
+from src.serving.config import MODEL_PATH, SEUIL_CHURN
 
 logger = logging.getLogger(__name__)
 
-BASE_DIR      = Path(__file__).resolve().parent.parent.parent
-MODEL_PATH    = BASE_DIR / "models" / "xgb_churn_model.pkl"
-PIPELINE_PATH = BASE_DIR / "models" / "preprocessor_pipeline.pkl"
-SEUIL_CHURN   = 0.5
-
 app = FastAPI(
     title="Telecom Churn Prediction API",
-    description="Predicts churn probability for telecom customers using XGBoost.",
+    description="Predicts churn probability using the selected champion model.",
     version="1.0.0",
 )
 
 try:
-    model    = joblib.load(MODEL_PATH)
-    pipeline = joblib.load(PIPELINE_PATH)
+    model = joblib.load(MODEL_PATH)
+    pipeline = model.named_steps["preprocessor"]
     logger.info("Model and pipeline loaded successfully.")
 except Exception as e:
     logger.error("Startup error: %s", e)
@@ -38,14 +33,7 @@ except Exception as e:
 
 
 def preprocess(data: dict):
-    df = pd.DataFrame([data])
-    df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors="coerce")
-    df["TotalCharges"].fillna(df["TotalCharges"].median(), inplace=True)
-    df = appliquer_feature_engineering(df)
-    X = pipeline.transform(df)
-    if hasattr(X, "toarray"):
-        X = X.toarray()
-    return X
+    return preparer_features(pd.DataFrame([data]))
 
 
 def predict_one(data: dict) -> PredictionOutput:
@@ -113,10 +101,15 @@ def interpret(customer: CustomerInput, top_n: int = 5):
         import shap
         X             = preprocess(customer.model_dump())
         result        = predict_one(customer.model_dump())
-        feature_names = pipeline.named_steps["preprocessor"].get_feature_names_out()
-        explainer     = shap.TreeExplainer(model)
-        shap_values   = explainer.shap_values(X)
-        shap_dict     = dict(zip(feature_names, shap_values[0]))
+        transformed = pipeline.transform(X)
+        if hasattr(transformed, "toarray"):
+            transformed = transformed.toarray()
+        estimator = model.named_steps.get("clf", model)
+        feature_names = pipeline.get_feature_names_out()
+        shap_values = shap.Explainer(estimator, transformed)(transformed)
+        if shap_values.values.ndim == 3:
+            shap_values = shap_values[:, :, 1]
+        shap_dict = dict(zip(feature_names, shap_values.values[0]))
         top_features  = dict(
             sorted(shap_dict.items(), key=lambda x: abs(x[1]), reverse=True)[:top_n]
         )

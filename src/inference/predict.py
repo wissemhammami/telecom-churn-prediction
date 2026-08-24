@@ -5,27 +5,22 @@ import logging
 import joblib
 import pandas as pd
 
-from src.features.feature_engineering import appliquer_feature_engineering
+from src.features.preprocessing import preparer_features
+from src.serving.config import MODEL_PATH, NEW_CUSTOMERS_PATH, PREDICTIONS_PATH, SEUIL_CHURN
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-NEW_DATA_PATH = os.path.join(BASE_DIR, "data", "new", "new_customers.csv")
-OUTPUT_PATH = os.path.join(BASE_DIR, "data", "new", "new_customers_predictions.csv")
-MODEL_PATH = os.path.join(BASE_DIR, "models", "xgb_churn_model.pkl")
-PIPELINE_PATH = os.path.join(BASE_DIR, "models", "preprocessor_pipeline.pkl")
-SEUIL_CHURN = 0.5
+NEW_DATA_PATH = NEW_CUSTOMERS_PATH
+OUTPUT_PATH = PREDICTIONS_PATH
 
 
 def charger_artefacts():
-    for path in [MODEL_PATH, PIPELINE_PATH]:
-        if not os.path.exists(path):
-            raise FileNotFoundError(f"Artefact introuvable : {path}")
+    if not os.path.exists(MODEL_PATH):
+        raise FileNotFoundError(f"Artefact introuvable : {MODEL_PATH}")
     model = joblib.load(MODEL_PATH)
-    pipeline = joblib.load(PIPELINE_PATH)
-    logger.info("Modèle et pipeline chargés.")
-    return model, pipeline
+    logger.info("Champion charge.")
+    return model
 
 
 def charger_clients(path: str) -> pd.DataFrame:
@@ -36,19 +31,9 @@ def charger_clients(path: str) -> pd.DataFrame:
     return df
 
 
-def preprocesser(df: pd.DataFrame, pipeline) -> any:
-    df = df.copy()
-    for col in ["customerID", "Churn"]:
-        if col in df.columns:
-            df = df.drop(columns=[col])
-    df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors="coerce")
-    df["TotalCharges"].fillna(df["TotalCharges"].median(), inplace=True)
-    df = appliquer_feature_engineering(df)
-    X = pipeline.transform(df)
-    if hasattr(X, "toarray"):
-        X = X.toarray()
-    logger.info("Preprocessing appliqué.")
-    return X
+def preprocesser(df: pd.DataFrame) -> pd.DataFrame:
+    logger.info("Preprocessing applique.")
+    return preparer_features(df)
 
 
 def predire(model, X, seuil: float = SEUIL_CHURN):
@@ -76,9 +61,9 @@ def sauvegarder(df_original: pd.DataFrame, labels, probabilites, output_path: st
 
 def main():
     logger.info("Démarrage de l'inférence batch...")
-    model, pipeline = charger_artefacts()
+    model = charger_artefacts()
     df_clients = charger_clients(NEW_DATA_PATH)
-    X = preprocesser(df_clients.copy(), pipeline)
+    X = preprocesser(df_clients.copy())
     labels, probs = predire(model, X)
     resultats = sauvegarder(df_clients, labels, probs, OUTPUT_PATH)
     print("\nRésultats :")

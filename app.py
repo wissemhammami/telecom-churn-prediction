@@ -5,9 +5,9 @@ import shap
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
-from pathlib import Path
 
-from src.features.feature_engineering import appliquer_feature_engineering
+from src.features.preprocessing import preparer_features
+from src.serving.config import MODEL_PATH, SEUIL_CHURN
 from src.serving.utils import niveau_risque
 
 # --------------------------------------------------
@@ -22,15 +22,10 @@ st.set_page_config(
 # --------------------------------------------------
 # Load artifacts
 # --------------------------------------------------
-BASE_DIR      = Path(__file__).resolve().parent
-MODEL_PATH    = BASE_DIR / "models" / "xgb_churn_model.pkl"
-PIPELINE_PATH = BASE_DIR / "models" / "preprocessor_pipeline.pkl"
-
-
 @st.cache_resource
 def load_artifacts():
-    model    = joblib.load(MODEL_PATH)
-    pipeline = joblib.load(PIPELINE_PATH)
+    model = joblib.load(MODEL_PATH)
+    pipeline = model.named_steps["preprocessor"]
     return model, pipeline
 
 
@@ -46,21 +41,14 @@ except Exception as e:
 # Preprocessing helper
 # --------------------------------------------------
 def preprocess(df: pd.DataFrame):
-    df = df.copy()
-    df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors="coerce")
-    df["TotalCharges"] = df["TotalCharges"].fillna(df["TotalCharges"].median())
-    df = appliquer_feature_engineering(df)
-    X = pipeline.transform(df)
-    if hasattr(X, "toarray"):
-        X = X.toarray()
-    return X
+    return preparer_features(df)
 
 
 # --------------------------------------------------
 # Header
 # --------------------------------------------------
 st.title("Telecom Churn Prediction")
-st.markdown("Predict customer churn risk using a trained XGBoost model.")
+st.markdown("Predict customer churn risk using the selected champion model.")
 st.divider()
 
 # --------------------------------------------------
@@ -138,7 +126,7 @@ with tab1:
         try:
             X      = preprocess(input_data)
             prob   = float(model.predict_proba(X)[:, 1][0])
-            label  = int(prob >= 0.5)
+            label  = int(prob >= SEUIL_CHURN)
             risque = niveau_risque(prob)
 
             st.divider()
@@ -181,7 +169,7 @@ with tab2:
             try:
                 X_batch = preprocess(df_batch.copy())
                 probs   = model.predict_proba(X_batch)[:, 1]
-                labels  = (probs >= 0.5).astype(int)
+                labels  = (probs >= SEUIL_CHURN).astype(int)
 
                 df_results = df_batch.copy()
                 df_results["Churn_Predicted"]   = labels
@@ -247,11 +235,15 @@ with tab3:
             try:
                 X_shap        = preprocess(df_shap.copy())
                 prob          = float(model.predict_proba(X_shap)[:, 1][0])
-                label         = int(prob >= 0.5)
-                feature_names = pipeline.named_steps["preprocessor"].get_feature_names_out()
-
-                explainer   = shap.TreeExplainer(model)
-                shap_values = explainer.shap_values(X_shap)
+                label         = int(prob >= SEUIL_CHURN)
+                transformed = pipeline.transform(X_shap)
+                if hasattr(transformed, "toarray"):
+                    transformed = transformed.toarray()
+                feature_names = pipeline.get_feature_names_out()
+                estimator = model.named_steps.get("clf", model)
+                shap_values = shap.Explainer(estimator, transformed)(transformed)
+                if shap_values.values.ndim == 3:
+                    shap_values = shap_values[:, :, 1]
 
                 st.divider()
                 col_a, col_b = st.columns(2)
@@ -262,10 +254,10 @@ with tab3:
 
                 st.markdown("**Top features driving this prediction:**")
 
-                indices = pd.Series(shap_values[0]).abs().sort_values(ascending=False).index
+                indices = pd.Series(shap_values.values[0]).abs().sort_values(ascending=False).index
                 shap_df = pd.DataFrame({
                     "Feature":    [feature_names[i] for i in indices[:10]],
-                    "SHAP Value": [shap_values[0][i] for i in indices[:10]]
+                    "SHAP Value": [shap_values.values[0][i] for i in indices[:10]]
                 }).reset_index(drop=True)
 
                 st.dataframe(shap_df, use_container_width=True)
@@ -273,9 +265,9 @@ with tab3:
                 fig, ax = plt.subplots(figsize=(8, 5))
                 shap.plots.waterfall(
                     shap.Explanation(
-                        values=shap_values[0],
-                        base_values=explainer.expected_value,
-                        data=X_shap[0],
+                        values=shap_values.values[0],
+                        base_values=shap_values.base_values[0],
+                        data=transformed[0],
                         feature_names=list(feature_names),
                     ),
                     max_display=10,

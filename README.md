@@ -1,7 +1,7 @@
 # Telecom Churn Prediction
 
 End-to-end machine learning project predicting customer churn for a telecom company.
-Built with XGBoost, FastAPI, and Streamlit.
+Built with scikit-learn, XGBoost, FastAPI, and Streamlit.
 
 ## Live Demo
 
@@ -21,14 +21,15 @@ and take targeted retention actions.
 
 ---
 
-## Results
+## Model Selection
 
-| Metric    | Baseline | XGBoost |
-|-----------|----------|---------|
-| AUC       | 0.50     | 0.85    |
-| F1        | 0.00     | 0.63    |
-| Precision | 0.00     | 0.52    |
-| Recall    | 0.00     | 0.81    |
+The training workflow compares Logistic Regression, Random Forest, and XGBoost
+against a DummyClassifier baseline. Each candidate is tuned with
+RandomizedSearchCV using the same 5-fold StratifiedKFold and ROC-AUC scoring.
+The champion is selected from training CV results, then evaluated once on the
+untouched test set. Final reporting includes ROC-AUC, PR-AUC, F1, precision,
+recall, and a simple threshold analysis. The selected champion is deployed by
+batch inference, FastAPI, and Streamlit.
 
 ---
 
@@ -42,26 +43,28 @@ TELECOM-CHURN-PREDICTION/
 │   └── new/                        # New customers for inference
 │
 ├── models/
-│   ├── xgb_churn_model.pkl         # Trained XGBoost model
-│   ├── preprocessor_pipeline.pkl   # Sklearn preprocessing pipeline
-│   ├── scaler.pkl                  # Standard scaler
+│   ├── champion_model.pkl          # Selected fitted model pipeline
+│   ├── model_metadata.json          # Champion and evaluation metrics
 │   └── feature_columns.pkl         # Feature names
 │
 ├── notebooks/
 │   └── eda.ipynb                   # Exploratory Data Analysis
 │
-├── reports/                        # SHAP plots and feature importance
+├── reports/
+│   ├── model_comparison.csv         # CV comparison
+│   └── threshold_analysis.csv       # Test threshold analysis
 │
 ├── scripts/
 │   └── check_data.py               # Data validation script
 │
 ├── src/
 │   ├── data/
-│   │   └── preprocess.py           # Data cleaning and pipeline
+│   │   └── __init__.py
 │   ├── features/
-│   │   └── feature_engineering.py  # Feature engineering
+│   │   ├── feature_engineering.py  # Feature engineering
+│   │   └── preprocessing.py        # Shared raw-data preparation
 │   ├── training/
-│   │   └── train.py                # XGBoost training with RandomizedSearchCV
+│   │   └── train.py                # Multi-model CV tuning and champion selection
 │   ├── inference/
 │   │   └── predict.py              # Batch inference
 │   ├── interpretability/
@@ -96,34 +99,29 @@ pip install -r requirements.txt
 
 ## How to Run
 
-**1 — Preprocess data**
-```bash
-python -m src.data.preprocess
-```
-
-**2 — Train the model**
+**1 — Train the model**
 ```bash
 python -m src.training.train
 ```
 
-**3 — Generate SHAP reports**
+**2 — Generate SHAP reports**
 ```bash
 python -m src.interpretability.interpretability
 ```
 
-**4 — Launch the API**
+**3 — Launch the API**
 ```bash
 uvicorn src.serving.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 API docs available at `http://localhost:8000/docs`
 
-**5 — Launch the Streamlit app**
+**4 — Launch the Streamlit app**
 ```bash
 python -m streamlit run app.py
 ```
 App available at `http://localhost:8501`
 
-**6 — Run tests**
+**5 — Run tests**
 ```bash
 pytest src/tests/test_predict.py -v
 ```
@@ -191,13 +189,35 @@ curl -X POST "http://localhost:8000/predict" \
 ## ML Pipeline
 ```
 Raw Data
-  └── Preprocessing         → TotalCharges fix, target encoding
-        └── Feature Engineering  → ChargesMoyennes, NbServices,
-                                    SansInternet, ContratLong, SegmentTenure
-              └── Pipeline        → StandardScaler + OneHotEncoder
-                    └── XGBoost   → RandomizedSearchCV (15 iterations, 5-fold CV)
-                          └── SHAP → Global + individual explanations
+  └── Train/Test split → test set held untouched
+    └── Shared feature preparation
+      └── 5-fold Stratified CV + RandomizedSearchCV
+        └── Logistic Regression / Random Forest / XGBoost
+          └── CV comparison → champion selection
+            └── Untouched test evaluation + threshold analysis
+              └── Champion packaging → API / Streamlit / batch / SHAP
 ```
+
+### Final Results
+
+The champion is selected by mean training CV ROC-AUC. The current generated
+artifacts select Random Forest.
+
+| Model | Mean CV ROC-AUC | Std |
+|---|---:|---:|
+| DummyClassifier | 0.5000 | 0.0000 |
+| LogisticRegression | 0.8474 | 0.0113 |
+| RandomForest | 0.8477 | 0.0100 |
+| XGBoost | 0.8469 | 0.0104 |
+
+The champion's one-time untouched-test results are ROC-AUC `0.8442`, PR-AUC
+`0.6520`, F1 `0.6414`, precision `0.5392`, and recall `0.7914`, using threshold
+`0.5`. Threshold results for `0.30`, `0.40`, `0.50`, `0.60`, and `0.70` are
+saved in `reports/threshold_analysis.csv`.
+
+SHAP uses the fitted champion estimator and explains the churn class. The
+standalone report script and the FastAPI and Streamlit explanation paths work
+with linear or tree-based champions.
 
 ---
 
