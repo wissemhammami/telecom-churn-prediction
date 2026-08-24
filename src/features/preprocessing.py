@@ -6,7 +6,7 @@ from src.features.feature_engineering import appliquer_feature_engineering
 
 
 def preparer_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Clean raw customer rows and apply the project's feature engineering."""
+    """Clean raw customer rows and apply shared feature engineering."""
     result = df.copy()
     for column in ["customerID", "Churn"]:
         if column in result.columns:

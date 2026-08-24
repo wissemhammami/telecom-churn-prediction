@@ -1,14 +1,19 @@
-# src/inference/predict.py
-
-import os
 import logging
+import os
 import joblib
 import pandas as pd
 
 from src.features.preprocessing import preparer_features
-from src.serving.config import MODEL_PATH, NEW_CUSTOMERS_PATH, PREDICTIONS_PATH, SEUIL_CHURN
+from src.serving.config import (
+    MODEL_PATH,
+    NEW_CUSTOMERS_PATH,
+    PREDICTIONS_PATH,
+    SEUIL_CHURN,
+)
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 NEW_DATA_PATH = NEW_CUSTOMERS_PATH
@@ -16,6 +21,7 @@ OUTPUT_PATH = PREDICTIONS_PATH
 
 
 def charger_artefacts():
+    """Load the production champion pipeline."""
     if not os.path.exists(MODEL_PATH):
         raise FileNotFoundError(f"Artefact introuvable : {MODEL_PATH}")
     model = joblib.load(MODEL_PATH)
@@ -24,6 +30,7 @@ def charger_artefacts():
 
 
 def charger_clients(path: str) -> pd.DataFrame:
+    """Load customer rows from a CSV file."""
     if not os.path.exists(path):
         raise FileNotFoundError(f"Fichier introuvable : {path}")
     df = pd.read_csv(path)
@@ -32,11 +39,13 @@ def charger_clients(path: str) -> pd.DataFrame:
 
 
 def preprocesser(df: pd.DataFrame) -> pd.DataFrame:
+    """Prepare raw customer rows for the champion pipeline."""
     logger.info("Preprocessing applique.")
     return preparer_features(df)
 
 
 def predire(model, X, seuil: float = SEUIL_CHURN):
+    """Generate labels and probabilities at the selected threshold."""
     probabilites = model.predict_proba(X)[:, 1]
     labels = (probabilites >= seuil).astype(int)
     logger.info(f"Prédictions générées pour {len(labels)} clients.")
@@ -44,6 +53,7 @@ def predire(model, X, seuil: float = SEUIL_CHURN):
 
 
 def sauvegarder(df_original: pd.DataFrame, labels, probabilites, output_path: str):
+    """Save predictions and risk levels alongside the original rows."""
     resultats = df_original.copy()
     resultats["Churn_Predit"] = labels
     resultats["Churn_Probabilite"] = probabilites.round(4)
@@ -55,7 +65,9 @@ def sauvegarder(df_original: pd.DataFrame, labels, probabilites, output_path: st
     logger.info(f"Résultats sauvegardés : {output_path}")
     total = len(labels)
     churnes = labels.sum()
-    logger.info(f"Résumé : {churnes}/{total} clients à risque ({churnes / total * 100:.1f}%)")
+    logger.info(
+        f"Résumé : {churnes}/{total} clients à risque ({churnes / total * 100:.1f}%)"
+    )
     return resultats
 
 

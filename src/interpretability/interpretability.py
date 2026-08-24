@@ -11,10 +11,12 @@ import seaborn as sns
 import shap
 
 from src.features.preprocessing import preparer_features
-from src.serving.config import FEATURES_PATH, RAW_DATA_PATH, REPORTS_DIR, MODEL_PATH
+from src.serving.config import FEATURES_PATH, MODEL_PATH, RAW_DATA_PATH, REPORTS_DIR
 
 matplotlib.use("Agg")
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 sns.set_theme(style="whitegrid")
 plt.rcParams["figure.dpi"] = 150
@@ -22,6 +24,7 @@ NB_CLIENTS_SHAP = 500
 
 
 def charger_artefacts():
+    """Load the champion, its embedded preprocessor, and feature names."""
     paths = [MODEL_PATH, FEATURES_PATH]
     for path in paths:
         if not os.path.exists(path):
@@ -31,11 +34,13 @@ def charger_artefacts():
 
 
 def charger_donnees() -> pd.DataFrame:
+    """Load and prepare raw training rows for explanation."""
     df = pd.read_csv(RAW_DATA_PATH)
     return preparer_features(df)
 
 
 def plot_feature_importance(model, feature_names, output_dir: str) -> None:
+    """Save a feature-importance chart for the champion estimator."""
     estimator = model.named_steps.get("clf", model)
     if hasattr(estimator, "feature_importances_"):
         importances = estimator.feature_importances_
@@ -44,9 +49,20 @@ def plot_feature_importance(model, feature_names, output_dir: str) -> None:
     else:
         logger.warning("Le champion ne fournit pas d'importances de features.")
         return
-    importance_df = pd.DataFrame({"Feature": feature_names, "Importance": abs(importances)}).sort_values("Importance", ascending=False).head(20)
+    importance_df = (
+        pd.DataFrame({"Feature": feature_names, "Importance": abs(importances)})
+        .sort_values("Importance", ascending=False)
+        .head(20)
+    )
     plt.figure(figsize=(10, 8))
-    sns.barplot(data=importance_df, x="Importance", y="Feature", hue="Feature", palette="magma", legend=False)
+    sns.barplot(
+        data=importance_df,
+        x="Importance",
+        y="Feature",
+        hue="Feature",
+        palette="magma",
+        legend=False,
+    )
     plt.title("Top 20 Features - Importance du champion")
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "feature_importance.png"))
@@ -54,6 +70,7 @@ def plot_feature_importance(model, feature_names, output_dir: str) -> None:
 
 
 def plot_shap_summary(model, pipeline, X_shap: pd.DataFrame, output_dir: str):
+    """Save a global SHAP summary for the churn class."""
     transformed = pipeline.transform(X_shap)
     if hasattr(transformed, "toarray"):
         transformed = transformed.toarray()
@@ -69,10 +86,14 @@ def plot_shap_summary(model, pipeline, X_shap: pd.DataFrame, output_dir: str):
 
 
 def plot_shap_waterfall(shap_values, output_dir: str, nb_clients: int = 5) -> None:
+    """Save individual SHAP waterfall charts."""
     for index in range(min(nb_clients, len(shap_values))):
         shap.plots.waterfall(shap_values[index], max_display=15, show=False)
         plt.tight_layout()
-        plt.savefig(os.path.join(output_dir, f"shap_waterfall_client_{index + 1}.png"), bbox_inches="tight")
+        plt.savefig(
+            os.path.join(output_dir, f"shap_waterfall_client_{index + 1}.png"),
+            bbox_inches="tight",
+        )
         plt.close()
 
 

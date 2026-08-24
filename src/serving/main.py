@@ -1,18 +1,18 @@
-# src/serving/main.py
-
 import logging
 
 import joblib
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 
+from src.serving.config import MODEL_PATH, SEUIL_CHURN
+from src.features.preprocessing import preparer_features
 from src.serving.schemas import (
-    CustomerInput, BatchCustomerInput,
-    PredictionOutput, BatchPredictionOutput,
+    BatchCustomerInput,
+    BatchPredictionOutput,
+    CustomerInput,
+    PredictionOutput,
 )
 from src.serving.utils import niveau_risque
-from src.features.preprocessing import preparer_features
-from src.serving.config import MODEL_PATH, SEUIL_CHURN
 
 logger = logging.getLogger(__name__)
 
@@ -28,16 +28,18 @@ try:
     logger.info("Model and pipeline loaded successfully.")
 except Exception as e:
     logger.error("Startup error: %s", e)
-    model    = None
+    model = None
     pipeline = None
 
 
 def preprocess(data: dict):
+    """Prepare one raw customer for the loaded champion pipeline."""
     return preparer_features(pd.DataFrame([data]))
 
 
 def predict_one(data: dict) -> PredictionOutput:
-    X    = preprocess(data)
+    """Return a prediction for one raw customer."""
+    X = preprocess(data)
     prob = float(model.predict_proba(X)[:, 1][0])
     label = int(prob >= SEUIL_CHURN)
     return PredictionOutput(
@@ -49,13 +51,15 @@ def predict_one(data: dict) -> PredictionOutput:
 
 @app.get("/")
 def root():
+    """Return the API status message."""
     return {"status": "Telecom Churn Prediction API is running."}
 
 
 @app.get("/health")
 def health():
+    """Report whether the champion and its preprocessor are loaded."""
     return {
-        "model_loaded":    model is not None,
+        "model_loaded": model is not None,
         "pipeline_loaded": pipeline is not None,
     }
 
@@ -66,7 +70,9 @@ def predict(customer: CustomerInput):
         raise HTTPException(status_code=503, detail="Model not loaded.")
     try:
         result = predict_one(customer.model_dump())
-        logger.info("Prediction: label=%s prob=%s", result.churn_label, result.churn_probability)
+        logger.info(
+            "Prediction: label=%s prob=%s", result.churn_label, result.churn_probability
+        )
         return result
     except Exception as e:
         logger.error("Prediction error: %s", e)
@@ -78,9 +84,9 @@ def predict_batch(batch: BatchCustomerInput):
     if model is None or pipeline is None:
         raise HTTPException(status_code=503, detail="Model not loaded.")
     try:
-        results      = [predict_one(c.model_dump()) for c in batch.customers]
-        total        = len(results)
-        nb_churners  = sum(r.churn_label for r in results)
+        results = [predict_one(c.model_dump()) for c in batch.customers]
+        total = len(results)
+        nb_churners = sum(r.churn_label for r in results)
         logger.info("Batch: %s clients processed.", total)
         return BatchPredictionOutput(
             results=results,
@@ -95,12 +101,14 @@ def predict_batch(batch: BatchCustomerInput):
 
 @app.post("/interpret")
 def interpret(customer: CustomerInput, top_n: int = 5):
+    """Return the top SHAP features for one customer."""
     if model is None or pipeline is None:
         raise HTTPException(status_code=503, detail="Model not loaded.")
     try:
         import shap
-        X             = preprocess(customer.model_dump())
-        result        = predict_one(customer.model_dump())
+
+        X = preprocess(customer.model_dump())
+        result = predict_one(customer.model_dump())
         transformed = pipeline.transform(X)
         if hasattr(transformed, "toarray"):
             transformed = transformed.toarray()
@@ -110,14 +118,14 @@ def interpret(customer: CustomerInput, top_n: int = 5):
         if shap_values.values.ndim == 3:
             shap_values = shap_values[:, :, 1]
         shap_dict = dict(zip(feature_names, shap_values.values[0]))
-        top_features  = dict(
+        top_features = dict(
             sorted(shap_dict.items(), key=lambda x: abs(x[1]), reverse=True)[:top_n]
         )
         return {
-            "churn_label":       result.churn_label,
+            "churn_label": result.churn_label,
             "churn_probability": result.churn_probability,
-            "niveau_risque":     result.niveau_risque,
-            "top_features":      {k: round(float(v), 4) for k, v in top_features.items()},
+            "niveau_risque": result.niveau_risque,
+            "top_features": {k: round(float(v), 4) for k, v in top_features.items()},
         }
     except Exception as e:
         logger.error("Interpret error: %s", e)
