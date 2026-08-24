@@ -237,7 +237,8 @@ with linear or tree-based champions.
 | Category          | Tools                          |
 |-------------------|--------------------------------|
 | Language          | Python 3.13                    |
-| ML                | XGBoost, Scikit-learn          |
+| ML                | Scikit-learn, XGBoost          |
+| Candidate models  | Logistic Regression, Random Forest, XGBoost |
 | Explainability    | SHAP                           |
 | API               | FastAPI, Pydantic, Uvicorn     |
 | Frontend          | Streamlit                      |

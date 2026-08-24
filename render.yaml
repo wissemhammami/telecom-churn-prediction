@@ -6,7 +6,7 @@ services:
     startCommand: uvicorn src.serving.main:app --host 0.0.0.0 --port 8000
     envVars:
       - key: PYTHON_VERSION
-        value: "3.10"
+        value: "3.12"
 
   - type: web
     name: churn-streamlit
@@ -15,4 +15,4 @@ services:
     startCommand: streamlit run app.py --server.port 8501 --server.address 0.0.0.0
     envVars:
       - key: PYTHON_VERSION
-        value: "3.10"
+        value: "3.12"

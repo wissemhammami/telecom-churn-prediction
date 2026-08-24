@@ -98,7 +98,7 @@ with tab1:
             streaming_tv     = st.selectbox("Streaming TV",     ["No", "Yes", "No internet service"])
             streaming_movies = st.selectbox("Streaming Movies", ["No", "Yes", "No internet service"])
 
-        submitted = st.form_submit_button("Predict", use_container_width=True)
+        submitted = st.form_submit_button("Predict", width="stretch")
 
     if submitted and artifacts_loaded:
         input_data = pd.DataFrame([{
@@ -163,9 +163,9 @@ with tab2:
     if uploaded_file and artifacts_loaded:
         df_batch = pd.read_csv(uploaded_file)
         st.markdown(f"**{len(df_batch)} customers loaded.**")
-        st.dataframe(df_batch.head(5), use_container_width=True)
+        st.dataframe(df_batch.head(5), width="stretch")
 
-        if st.button("Run Batch Prediction", use_container_width=True):
+        if st.button("Run Batch Prediction", width="stretch"):
             try:
                 X_batch = preprocess(df_batch.copy())
                 probs   = model.predict_proba(X_batch)[:, 1]
@@ -190,7 +190,7 @@ with tab2:
 
                 st.dataframe(
                     df_results[["Churn_Predicted", "Churn_Probability", "Risk_Level"]],
-                    use_container_width=True
+                    width="stretch"
                 )
 
                 csv = df_results.to_csv(index=False).encode("utf-8")
@@ -199,7 +199,7 @@ with tab2:
                     data=csv,
                     file_name="churn_predictions.csv",
                     mime="text/csv",
-                    use_container_width=True,
+                    width="stretch",
                 )
 
             except Exception as e:
@@ -231,7 +231,7 @@ with tab3:
         df_shap   = pd.read_csv(shap_file) if shap_file else None
 
     if df_shap is not None and artifacts_loaded:
-        if st.button("Explain Prediction", use_container_width=True):
+        if st.button("Explain Prediction", width="stretch"):
             try:
                 X_shap        = preprocess(df_shap.copy())
                 prob          = float(model.predict_proba(X_shap)[:, 1][0])
@@ -260,7 +260,7 @@ with tab3:
                     "SHAP Value": [shap_values.values[0][i] for i in indices[:10]]
                 }).reset_index(drop=True)
 
-                st.dataframe(shap_df, use_container_width=True)
+                st.dataframe(shap_df, width="stretch")
 
                 fig, ax = plt.subplots(figsize=(8, 5))
                 shap.plots.waterfall(
@@ -273,7 +273,7 @@ with tab3:
                     max_display=10,
                     show=False,
                 )
-                st.pyplot(fig, use_container_width=True)
+                st.pyplot(fig, width="stretch")
                 plt.close()
 
             except Exception as e:
