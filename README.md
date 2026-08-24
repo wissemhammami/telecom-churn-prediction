@@ -89,6 +89,8 @@ TELECOM-CHURN-PREDICTION/
 git clone https://github.com/wissemhammami/telecom-churn-prediction.git
 cd telecom-churn-prediction
 
+Requires Python 3.12 (Streamlit Cloud and local installs fail on Python 3.14 due to shap/numba/llvmlite incompatibility).
+
 python -m venv env
 source env/bin/activate        # Windows: env\Scripts\activate
 
