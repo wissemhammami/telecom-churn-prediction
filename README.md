@@ -251,4 +251,4 @@ with linear or tree-based champions.
 
 **Wissem Hammami**  
 Machine Learning Engineer | Data Science | ESSAI, University of Carthage  
-[GitHub](https://github.com/wissemhammami)
+[LinkedIn](https://www.linkedin.com/in/wissemhammami/)
