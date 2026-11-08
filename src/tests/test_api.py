@@ -3,7 +3,7 @@
 from fastapi.testclient import TestClient
 
 from src.serving.main import app
-from src.tests.test_predict import CLIENT_EXEMPLE
+from src.tests.test_predict import SAMPLE_CUSTOMER
 
 
 client = TestClient(app)
@@ -17,7 +17,7 @@ def test_health():
 
 
 def test_predict_valid_customer():
-    response = client.post("/predict", json=CLIENT_EXEMPLE)
+    response = client.post("/predict", json=SAMPLE_CUSTOMER)
     body = response.json()
 
     assert response.status_code == 200
@@ -27,9 +27,9 @@ def test_predict_valid_customer():
 
 
 def test_predict_rejects_invalid_customer():
-    invalid_contract = {**CLIENT_EXEMPLE, "Contract": "banana"}
-    missing_field = {key: value for key, value in CLIENT_EXEMPLE.items() if key != "tenure"}
-    negative_tenure = {**CLIENT_EXEMPLE, "tenure": -1}
+    invalid_contract = {**SAMPLE_CUSTOMER, "Contract": "banana"}
+    missing_field = {key: value for key, value in SAMPLE_CUSTOMER.items() if key != "tenure"}
+    negative_tenure = {**SAMPLE_CUSTOMER, "tenure": -1}
 
     assert client.post("/predict", json=invalid_contract).status_code == 422
     assert client.post("/predict", json=missing_field).status_code == 422
@@ -38,7 +38,7 @@ def test_predict_rejects_invalid_customer():
 
 def test_batch_contract():
     response = client.post(
-        "/predict/batch", json={"customers": [CLIENT_EXEMPLE, CLIENT_EXEMPLE]}
+        "/predict/batch", json={"customers": [SAMPLE_CUSTOMER, SAMPLE_CUSTOMER]}
     )
 
     assert response.status_code == 200
@@ -47,7 +47,7 @@ def test_batch_contract():
 
 
 def test_interpret_contract():
-    response = client.post("/interpret?top_n=3", json=CLIENT_EXEMPLE)
+    response = client.post("/interpret?top_n=3", json=SAMPLE_CUSTOMER)
     body = response.json()
 
     assert response.status_code == 200
@@ -69,7 +69,7 @@ def test_unavailable_model_returns_503(monkeypatch):
     import src.serving.main as serving_main
 
     monkeypatch.setattr(serving_main, "model", None)
-    response = client.post("/predict", json=CLIENT_EXEMPLE)
+    response = client.post("/predict", json=SAMPLE_CUSTOMER)
     health_response = client.get("/health")
 
     assert response.status_code == 503

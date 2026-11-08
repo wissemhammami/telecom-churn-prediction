@@ -11,12 +11,12 @@ from src.serving.explain import (
     get_explainer,
 )
 from src.serving.main import model, predict_one
-from src.tests.test_predict import CLIENT_EXEMPLE
+from src.tests.test_predict import SAMPLE_CUSTOMER
 
 
 def _readable_explanation():
     """Build the readable explanation for the shared example customer."""
-    prepared = prepare_features(pd.DataFrame([CLIENT_EXEMPLE]))
+    prepared = prepare_features(pd.DataFrame([SAMPLE_CUSTOMER]))
     explanation = explain_row(get_explainer(model), model, prepared)
     readable = build_readable_explanation(
         explanation, list(explanation.feature_names), prepared
@@ -30,7 +30,7 @@ def test_waterfall_endpoint_matches_model_probability():
     waterfall = build_waterfall_explanation(
         readable, float(explanation.base_values[0])
     )
-    probability = predict_one(CLIENT_EXEMPLE).churn_probability
+    probability = predict_one(SAMPLE_CUSTOMER).churn_probability
     endpoint = float(waterfall.base_values + waterfall.values.sum())
 
     assert abs(endpoint - probability) < 0.02

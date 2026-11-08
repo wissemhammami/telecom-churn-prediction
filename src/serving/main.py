@@ -106,7 +106,7 @@ def predict_batch(batch: BatchCustomerInput, _model=Depends(get_model)):
         results = [predict_one(c.model_dump()) for c in batch.customers]
         total = len(results)
         num_churners = sum(r.churn_label for r in results)
-        logger.info("Batch: %s clients processed.", total)
+        logger.info("Batch: %s customers processed.", total)
         return BatchPredictionOutput(
             results=results,
             total=total,

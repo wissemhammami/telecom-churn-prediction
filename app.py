@@ -162,7 +162,7 @@ with tab1:
             X = preprocess(input_data)
             prob = float(model.predict_proba(X)[:, 1][0])
             label = int(prob >= CHURN_THRESHOLD)
-            risque = get_risk_level(prob)
+            risk_level = get_risk_level(prob)
 
             st.divider()
             st.subheader("Results")
@@ -173,9 +173,9 @@ with tab1:
             with col_b:
                 st.metric("Prediction", "Churn" if label == 1 else "No Churn")
             with col_c:
-                if risque == "Low":
+                if risk_level == "Low":
                     st.success("Low Risk")
-                elif risque == "Medium":
+                elif risk_level == "Medium":
                     st.warning("Medium Risk")
                 else:
                     st.error("High Risk")

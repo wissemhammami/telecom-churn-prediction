@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 # Test data.
 
 # Representative customer record.
-CLIENT_EXEMPLE = {
+SAMPLE_CUSTOMER = {
     "gender": "Female",
     "SeniorCitizen": 0,
     "Partner": "Yes",
@@ -32,47 +32,47 @@ CLIENT_EXEMPLE = {
 }
 
 # Sample batch.
-DF_BATCH = pd.DataFrame([CLIENT_EXEMPLE, CLIENT_EXEMPLE])
+DF_BATCH = pd.DataFrame([SAMPLE_CUSTOMER, SAMPLE_CUSTOMER])
 
 
-class TestNiveauRisque:
+class TestRiskLevel:
     """Test risk-level classification."""
 
-    def test_risque_eleve(self):
+    def test_high_risk(self):
         """Probabilities at least 0.7 are high risk."""
         from src.serving.utils import get_risk_level
 
         assert get_risk_level(0.85) == "High"
 
-    def test_risque_moyen(self):
+    def test_medium_risk(self):
         """Probabilities from 0.4 to below 0.7 are medium risk."""
         from src.serving.utils import get_risk_level
 
         assert get_risk_level(0.55) == "Medium"
 
-    def test_risque_faible(self):
+    def test_low_risk(self):
         """Probabilities below 0.4 are low risk."""
         from src.serving.utils import get_risk_level
 
         assert get_risk_level(0.2) == "Low"
 
-    def test_seuil_exact_eleve(self):
+    def test_exact_high_threshold(self):
         """A probability of exactly 0.7 is high risk."""
         from src.serving.utils import get_risk_level
 
         assert get_risk_level(0.7) == "High"
 
-    def test_seuil_exact_moyen(self):
+    def test_exact_medium_threshold(self):
         """A probability of exactly 0.4 is medium risk."""
         from src.serving.utils import get_risk_level
 
         assert get_risk_level(0.4) == "Medium"
 
 
-class TestPredireProba:
+class TestPredictProba:
     """Test probability-to-label conversion."""
 
-    def test_labels_binaires(self):
+    def test_binary_labels(self):
         """Returned labels are binary."""
         from src.serving.utils import predict_proba_with_threshold
 
@@ -84,7 +84,7 @@ class TestPredireProba:
 
         assert set(labels).issubset({0, 1})
 
-    def test_probabilites_entre_0_et_1(self):
+    def test_probabilities_between_0_and_1(self):
         """Returned probabilities are bounded between zero and one."""
         from src.serving.utils import predict_proba_with_threshold
 
@@ -96,7 +96,7 @@ class TestPredireProba:
 
         assert all(0 <= p <= 1 for p in probs)
 
-    def test_seuil_05(self):
+    def test_threshold_05(self):
         """A probability above the default threshold gets label one."""
         from src.serving.utils import predict_proba_with_threshold
 
@@ -108,7 +108,7 @@ class TestPredireProba:
 
         assert labels[0] == 1
 
-    def test_seuil_personnalise(self):
+    def test_custom_threshold(self):
         """A probability below a custom threshold gets label zero."""
         from src.serving.utils import predict_proba_with_threshold
 
@@ -129,17 +129,17 @@ class TestPreprocessing:
         from src.features.preprocessing import prepare_features
 
         prepared = prepare_features(
-            pd.DataFrame([{**CLIENT_EXEMPLE, "customerID": "abc", "Churn": "Yes"}])
+            pd.DataFrame([{**SAMPLE_CUSTOMER, "customerID": "abc", "Churn": "Yes"}])
         )
 
         assert "customerID" not in prepared.columns
         assert "Churn" not in prepared.columns
 
-    def test_totalcharges_converti(self):
+    def test_totalcharges_converted(self):
         """TotalCharges is converted to a numeric dtype."""
         from src.features.preprocessing import prepare_features
 
-        data = CLIENT_EXEMPLE.copy()
+        data = SAMPLE_CUSTOMER.copy()
         data["TotalCharges"] = "1027.2"  # Raw CSV values may be strings.
 
         prepared = prepare_features(pd.DataFrame([data]))
@@ -150,7 +150,7 @@ class TestPreprocessing:
         """Blank TotalCharges values become NaN."""
         from src.features.preprocessing import prepare_features
 
-        data = CLIENT_EXEMPLE.copy()
+        data = SAMPLE_CUSTOMER.copy()
         data["TotalCharges"] = " "
 
         prepared = prepare_features(pd.DataFrame([data]))
@@ -341,7 +341,7 @@ class TestChampionAPI:
         from src.serving.main import interpret, predict, predict_batch
         from src.serving.schemas import BatchCustomerInput, CustomerInput
 
-        customer = CustomerInput(**CLIENT_EXEMPLE)
+        customer = CustomerInput(**SAMPLE_CUSTOMER)
         single = predict(customer)
         batch = predict_batch(BatchCustomerInput(customers=[customer, customer]))
 
@@ -357,7 +357,7 @@ class TestChampionAPI:
         from src.serving.main import interpret
         from src.serving.schemas import CustomerInput
 
-        explanation = interpret(CustomerInput(**CLIENT_EXEMPLE))
+        explanation = interpret(CustomerInput(**SAMPLE_CUSTOMER))
 
         assert any(abs(value) > 1e-6 for value in explanation["top_features"].values())
 
@@ -367,7 +367,7 @@ class TestChampionAPI:
         from src.serving.main import model, predict_one
         from src.serving.schemas import CustomerInput
 
-        customer = CustomerInput(**CLIENT_EXEMPLE)
+        customer = CustomerInput(**SAMPLE_CUSTOMER)
         prepared = prepare_features(pd.DataFrame([customer.model_dump()]))
         explanation = explain_row(get_explainer(model), model, prepared)
         probability = predict_one(customer.model_dump()).churn_probability
@@ -384,7 +384,7 @@ class TestChampionAPI:
         from src.serving.main import model, predict_one
         from src.serving.schemas import CustomerInput
 
-        high_risk = CLIENT_EXEMPLE.copy()
+        high_risk = SAMPLE_CUSTOMER.copy()
         high_risk.update(
             {
                 "tenure": 2,
@@ -393,7 +393,7 @@ class TestChampionAPI:
                 "PaymentMethod": "Electronic check",
             }
         )
-        low_risk = CLIENT_EXEMPLE.copy()
+        low_risk = SAMPLE_CUSTOMER.copy()
         low_risk.update(
             {
                 "tenure": 60,
@@ -439,7 +439,7 @@ class TestChampionAPI:
         )
         from src.serving.main import model
 
-        prepared = prepare_features(pd.DataFrame([CLIENT_EXEMPLE]))
+        prepared = prepare_features(pd.DataFrame([SAMPLE_CUSTOMER]))
         explanation = explain_row(get_explainer(model), model, prepared)
         readable = build_readable_explanation(
             explanation, list(explanation.feature_names), prepared
@@ -464,7 +464,7 @@ class TestChampionAPI:
         )
         from src.serving.main import model
 
-        prepared = prepare_features(pd.DataFrame([CLIENT_EXEMPLE]))
+        prepared = prepare_features(pd.DataFrame([SAMPLE_CUSTOMER]))
         explanation = explain_row(get_explainer(model), model, prepared)
         readable = build_readable_explanation(
             explanation, list(explanation.feature_names), prepared
@@ -477,7 +477,7 @@ class TestChampionAPI:
         from src.features.preprocessing import prepare_features
 
         prepared = prepare_features(
-            pd.DataFrame([{**CLIENT_EXEMPLE, "customerID": "abc", "Churn": "Yes"}])
+            pd.DataFrame([{**SAMPLE_CUSTOMER, "customerID": "abc", "Churn": "Yes"}])
         )
         assert "customerID" not in prepared.columns
         assert "Churn" not in prepared.columns
