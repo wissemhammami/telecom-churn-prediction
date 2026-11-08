@@ -52,12 +52,12 @@ logger = logging.getLogger(__name__)
 
 REPORT_SAVE_PATH = os.path.join(REPORTS_DIR, "model_comparison.csv")
 NUMERIC_FINAL = NUMERIC_FEATURES + [
-    "ChargesMoyennes",
-    "NbServices",
-    "SansInternet",
-    "ContratLong",
+    "AvgMonthlyCharge",
+    "NumServices",
+    "NoInternet",
+    "LongContract",
 ]
-CATEGORICAL_FINAL = CATEGORICAL_FEATURES + ["SegmentTenure"]
+CATEGORICAL_FINAL = CATEGORICAL_FEATURES + ["TenureSegment"]
 
 
 def load_data() -> tuple[pd.DataFrame, pd.Series]:

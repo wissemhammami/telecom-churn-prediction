@@ -20,7 +20,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 sns.set_theme(style="whitegrid")
 plt.rcParams["figure.dpi"] = 150
-NB_CLIENTS_SHAP = 500
+NB_CUSTOMERS_SHAP = 500
 
 
 def load_artifacts():
@@ -85,9 +85,9 @@ def plot_shap_summary(model, pipeline, X_shap: pd.DataFrame, output_dir: str):
     return explanation
 
 
-def plot_shap_waterfall(shap_values, output_dir: str, nb_clients: int = 5) -> None:
+def plot_shap_waterfall(shap_values, output_dir: str, nb_customers: int = 5) -> None:
     """Save individual SHAP waterfall charts."""
-    for index in range(min(nb_clients, len(shap_values))):
+    for index in range(min(nb_customers, len(shap_values))):
         shap.plots.waterfall(shap_values[index], max_display=15, show=False)
         plt.tight_layout()
         plt.savefig(
@@ -101,7 +101,7 @@ def main():
     os.makedirs(REPORTS_DIR, exist_ok=True)
     model, pipeline, feature_names = load_artifacts()
     X = load_data()
-    X_shap = X.sample(n=min(NB_CLIENTS_SHAP, len(X)), random_state=42)
+    X_shap = X.sample(n=min(NB_CUSTOMERS_SHAP, len(X)), random_state=42)
     plot_feature_importance(model, feature_names, REPORTS_DIR)
     shap_values = plot_shap_summary(model, pipeline, X_shap, REPORTS_DIR)
     plot_shap_waterfall(shap_values, REPORTS_DIR)

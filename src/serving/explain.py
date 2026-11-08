@@ -14,22 +14,22 @@ from src.serving.config import (
 
 
 NUMERIC_FINAL = NUMERIC_FEATURES + [
-    "ChargesMoyennes",
-    "NbServices",
-    "SansInternet",
-    "ContratLong",
+    "AvgMonthlyCharge",
+    "NumServices",
+    "NoInternet",
+    "LongContract",
 ]
-CATEGORICAL_FINAL = CATEGORICAL_FEATURES + ["SegmentTenure"]
+CATEGORICAL_FINAL = CATEGORICAL_FEATURES + ["TenureSegment"]
 
 COLUMN_LABELS = {
     "tenure": "Tenure (months)",
     "MonthlyCharges": "Monthly charges ($)",
     "TotalCharges": "Total charges ($)",
-    "ChargesMoyennes": "Average monthly charge ($)",
-    "NbServices": "Number of optional services",
-    "SansInternet": "No internet service",
-    "ContratLong": "Long contract (1-2 years)",
-    "SegmentTenure": "Tenure segment",
+    "AvgMonthlyCharge": "Average monthly charge ($)",
+    "NumServices": "Number of optional services",
+    "NoInternet": "No internet service",
+    "LongContract": "Long contract (1-2 years)",
+    "TenureSegment": "Tenure segment",
     "gender": "Gender",
     "SeniorCitizen": "Senior citizen",
     "Partner": "Partner",
@@ -49,13 +49,13 @@ COLUMN_LABELS = {
 }
 
 VALUE_LABELS = {
-    "SegmentTenure": {
-        "Nouveau": "New (12 months or less)",
-        "Intermediaire": "Intermediate (13-36 months)",
-        "Fidele": "Loyal (over 36 months)",
+    "TenureSegment": {
+        "New": "New (12 months or less)",
+        "Intermediate": "Intermediate (13-36 months)",
+        "Loyal": "Loyal (over 36 months)",
     },
-    "SansInternet": {1: "Yes", 0: "No"},
-    "ContratLong": {1: "Yes", 0: "No"},
+    "NoInternet": {1: "Yes", 0: "No"},
+    "LongContract": {1: "Yes", 0: "No"},
     "SeniorCitizen": {1: "Yes", 0: "No"},
 }
 

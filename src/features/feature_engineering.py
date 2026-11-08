@@ -6,7 +6,7 @@ import pandas as pd
 
 def add_average_charge(df: pd.DataFrame) -> pd.DataFrame:
     """Add average monthly charges while handling zero-tenure customers."""
-    df["ChargesMoyennes"] = np.where(
+    df["AvgMonthlyCharge"] = np.where(
         df["tenure"] > 0,
         df["TotalCharges"] / df["tenure"].replace(0, np.nan),
         0,
@@ -19,13 +19,13 @@ def add_tenure_segment(df: pd.DataFrame) -> pd.DataFrame:
 
     def segment_tenure(tenure):
         if tenure <= 12:
-            return "Nouveau"
+            return "New"
         elif tenure <= 36:
-            return "Intermediaire"
+            return "Intermediate"
         else:
-            return "Fidele"
+            return "Loyal"
 
-    df["SegmentTenure"] = df["tenure"].apply(segment_tenure)
+    df["TenureSegment"] = df["tenure"].apply(segment_tenure)
     return df
 
 
@@ -40,19 +40,19 @@ def add_num_services(df: pd.DataFrame) -> pd.DataFrame:
         "StreamingMovies",
     ]
 
-    df["NbServices"] = (df[services] == "Yes").sum(axis=1)
+    df["NumServices"] = (df[services] == "Yes").sum(axis=1)
     return df
 
 
 def add_no_internet(df: pd.DataFrame) -> pd.DataFrame:
     """Add an indicator for customers without internet service."""
-    df["SansInternet"] = (df["InternetService"] == "No").astype(int)
+    df["NoInternet"] = (df["InternetService"] == "No").astype(int)
     return df
 
 
 def add_long_contract(df: pd.DataFrame) -> pd.DataFrame:
     """Add an indicator for one-year and two-year contracts."""
-    df["ContratLong"] = (df["Contract"].isin(["One year", "Two year"])).astype(int)
+    df["LongContract"] = (df["Contract"].isin(["One year", "Two year"])).astype(int)
     return df
 
 

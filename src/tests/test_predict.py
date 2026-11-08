@@ -161,50 +161,50 @@ class TestPreprocessing:
 class TestFeatureEngineering:
     """Test derived feature creation."""
 
-    def test_charges_moyennes_tenure_normal(self):
+    def test_avg_monthly_charge_tenure_normal(self):
         """Average charges equal total charges divided by tenure."""
         from src.features.feature_engineering import add_average_charge
 
         df = pd.DataFrame([{"TotalCharges": 1000.0, "tenure": 10}])
         df = add_average_charge(df)
 
-        assert df["ChargesMoyennes"].iloc[0] == 100.0
+        assert df["AvgMonthlyCharge"].iloc[0] == 100.0
 
-    def test_charges_moyennes_tenure_zero(self):
+    def test_avg_monthly_charge_tenure_zero(self):
         """Average charges are zero for zero-tenure customers."""
         from src.features.feature_engineering import add_average_charge
 
         df = pd.DataFrame([{"TotalCharges": 0.0, "tenure": 0}])
         df = add_average_charge(df)
 
-        assert df["ChargesMoyennes"].iloc[0] == 0.0
+        assert df["AvgMonthlyCharge"].iloc[0] == 0.0
 
-    def test_charges_moyennes_tenure_zero_nan(self):
+    def test_avg_monthly_charge_tenure_zero_nan(self):
         """Average charges are zero for zero-tenure customers with NaN totals."""
         from src.features.feature_engineering import add_average_charge
 
         df = pd.DataFrame([{"TotalCharges": np.nan, "tenure": 0}])
         df = add_average_charge(df)
 
-        assert df["ChargesMoyennes"].iloc[0] == 0.0
+        assert df["AvgMonthlyCharge"].iloc[0] == 0.0
 
-    def test_segment_tenure_nouveau(self):
+    def test_tenure_segment_new(self):
         """Tenure up to 12 months is the new-customer segment."""
         from src.features.feature_engineering import add_tenure_segment
 
         df = pd.DataFrame([{"tenure": 6}])
         df = add_tenure_segment(df)
 
-        assert df["SegmentTenure"].iloc[0] == "Nouveau"
+        assert df["TenureSegment"].iloc[0] == "New"
 
-    def test_segment_tenure_fidele(self):
+    def test_tenure_segment_loyal(self):
         """Tenure above 36 months is the loyal-customer segment."""
         from src.features.feature_engineering import add_tenure_segment
 
         df = pd.DataFrame([{"tenure": 50}])
         df = add_tenure_segment(df)
 
-        assert df["SegmentTenure"].iloc[0] == "Fidele"
+        assert df["TenureSegment"].iloc[0] == "Loyal"
 
     def test_tenure_segment_boundaries(self):
         """Tenure boundaries map to the expected segments."""
@@ -212,11 +212,11 @@ class TestFeatureEngineering:
 
         df = add_tenure_segment(pd.DataFrame({"tenure": [12, 13, 36, 37]}))
 
-        assert df["SegmentTenure"].tolist() == [
-            "Nouveau",
-            "Intermediaire",
-            "Intermediaire",
-            "Fidele",
+        assert df["TenureSegment"].tolist() == [
+            "New",
+            "Intermediate",
+            "Intermediate",
+            "Loyal",
         ]
 
     def test_nb_services(self):
@@ -237,7 +237,7 @@ class TestFeatureEngineering:
         )
         df = add_num_services(df)
 
-        assert df["NbServices"].iloc[0] == 3
+        assert df["NumServices"].iloc[0] == 3
 
     def test_no_internet_has_no_services(self):
         """Customers without internet have no optional services counted."""
@@ -262,8 +262,8 @@ class TestFeatureEngineering:
         df = add_num_services(df)
         df = add_no_internet(df)
 
-        assert df["SansInternet"].iloc[0] == 1
-        assert df["NbServices"].iloc[0] == 0
+        assert df["NoInternet"].iloc[0] == 1
+        assert df["NumServices"].iloc[0] == 0
 
     @pytest.mark.skipif(
         not pd.io.common.file_exists("data/raw/churn.csv"),
@@ -302,29 +302,29 @@ class TestFeatureEngineering:
         actual = add_num_services(actual)
 
         assert np.allclose(
-            actual["ChargesMoyennes"],
+            actual["AvgMonthlyCharge"],
             expected_average,
             equal_nan=True,
         )
-        assert actual["NbServices"].equals(expected_services)
+        assert actual["NumServices"].equals(expected_services)
 
-    def test_contrat_long_two_year(self):
+    def test_long_contract_two_year(self):
         """A two-year contract is marked as long term."""
         from src.features.feature_engineering import add_long_contract
 
         df = pd.DataFrame([{"Contract": "Two year"}])
         df = add_long_contract(df)
 
-        assert df["ContratLong"].iloc[0] == 1
+        assert df["LongContract"].iloc[0] == 1
 
-    def test_contrat_long_month_to_month(self):
+    def test_long_contract_month_to_month(self):
         """A month-to-month contract is not marked as long term."""
         from src.features.feature_engineering import add_long_contract
 
         df = pd.DataFrame([{"Contract": "Month-to-month"}])
         df = add_long_contract(df)
 
-        assert df["ContratLong"].iloc[0] == 0
+        assert df["LongContract"].iloc[0] == 0
 
 
 class TestChampionAPI:

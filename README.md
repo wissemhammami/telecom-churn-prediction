@@ -157,13 +157,13 @@ same five-fold stratified randomized search. The generated CV results are:
 | Model | Mean CV ROC-AUC | Standard deviation |
 |---|---:|---:|
 | LogisticRegression | 0.8474 | 0.0113 |
-| RandomForest | 0.8477 | 0.0100 |
-| XGBoost | 0.8469 | 0.0104 |
+| RandomForest | 0.8479 | 0.0103 |
+| XGBoost | 0.8469 | 0.0116 |
 
 These models are within cross-validation noise. Random Forest is retained by
 the pre-declared rule: highest mean CV ROC-AUC. The untouched-test results at
-the production threshold of 0.5 are ROC-AUC `0.8442`, PR-AUC `0.6520`, F1
-`0.6414`, precision `0.5392`, and recall `0.7914`.
+the production threshold of 0.5 are ROC-AUC `0.8448`, PR-AUC `0.6542`, F1
+`0.6398`, precision `0.5394`, and recall `0.7861`.
 
 ## Explainability
 
@@ -183,26 +183,26 @@ in deployed environments.
 ## Business Impact and Threshold
 
 The current production threshold remains `0.50`. A separate analysis selected
-`0.35` on training cross-validation predictions under these assumed,
+`0.40` on training cross-validation predictions under these assumed,
 editable costs:
 
 - Retention offer cost: `20`
 - Customer lifetime value: `300`
 - Retention success rate: `0.30`
 
-These are not operator data. The training-CV net benefit was `62,520` at
-0.35 versus `61,430` at 0.50. On the untouched test set, threshold 0.35
-produced precision `0.4562`, recall `0.8770`, and net benefit `15,140`.
+These are not operator data. The training-CV net benefit was `62,330` at
+0.40 versus `61,050` at 0.50. On the untouched test set, threshold 0.40
+produced precision `0.4832`, recall `0.8449`, and net benefit `15,360`.
 
 | Threshold | Training-CV net benefit |
 |---:|---:|
-| 0.20 | 54,240 |
-| 0.30 | 61,010 |
-| 0.35 | 62,520 |
-| 0.40 | 62,180 |
-| 0.50 | 61,430 |
-| 0.60 | 55,850 |
-| 0.70 | 45,080 |
+| 0.20 | 54,220 |
+| 0.30 | 60,650 |
+| 0.35 | 62,190 |
+| 0.40 | 62,330 |
+| 0.50 | 61,050 |
+| 0.60 | 56,320 |
+| 0.70 | 45,980 |
 
 The production threshold should change only after these assumptions are
 validated with real retention costs and outcomes.
@@ -211,7 +211,7 @@ validated with real retention costs and outcomes.
 
 ![Calibration curve](reports/calibration.png)
 
-The held-out-test Brier score is `0.157964`. The aggregate diagnostic is
+The held-out-test Brier score is `0.158078`. The aggregate diagnostic is
 over-confident; calibration should be monitored before using probabilities as
 financial forecasts.
 
