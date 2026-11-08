@@ -22,6 +22,8 @@ dataset from [Kaggle](https://www.kaggle.com/datasets/blastchar/telco-customer-c
 TELECOM-CHURN-PREDICTION/
 ├── .github/workflows/ci.yml
 ├── .dockerignore
+├── .gitattributes
+├── .gitignore
 ├── app.py
 ├── data/
 │   ├── new/
@@ -39,6 +41,10 @@ TELECOM-CHURN-PREDICTION/
 │   ├── model_comparison.csv
 │   ├── shap_summary.png
 │   ├── shap_waterfall_client_1.png
+│   ├── shap_waterfall_client_2.png
+│   ├── shap_waterfall_client_3.png
+│   ├── shap_waterfall_client_4.png
+│   ├── shap_waterfall_client_5.png
 │   ├── threshold_analysis.csv
 │   ├── threshold_cost_analysis.csv
 │   ├── threshold_test_comparison.csv
@@ -51,8 +57,12 @@ TELECOM-CHURN-PREDICTION/
 │   └── threshold_cost_analysis.py
 ├── src/
 │   ├── features/
+│   │   ├── feature_engineering.py
+│   │   └── preprocessing.py
 │   ├── inference/
+│   │   └── predict.py
 │   ├── interpretability/
+│   │   └── interpretability.py
 │   ├── serving/
 │   │   ├── config.py
 │   │   ├── explain.py
@@ -61,8 +71,10 @@ TELECOM-CHURN-PREDICTION/
 │   │   └── utils.py
 │   ├── tests/
 │   │   ├── test_api.py
+│   │   ├── test_explain_readable.py
 │   │   └── test_predict.py
 │   └── training/
+│       └── train.py
 ├── Dockerfile
 ├── requirements.txt
 ├── runtime.txt
@@ -84,6 +96,21 @@ pip install -r requirements.txt
 
 The CI workflow requires `models/champion_model.pkl` and
 `models/shap_background.csv` to remain tracked in the repository.
+
+## Reproduce the results
+
+1. Download the Telco Customer Churn CSV from the
+   [Kaggle dataset](https://www.kaggle.com/datasets/blastchar/telco-customer-churn)
+   and save it as `data/raw/churn.csv`. The `data/` folder is gitignored.
+2. `python -m src.training.train`
+3. `python scripts/make_shap_background.py`
+4. `python -m src.interpretability.interpretability`
+5. `python scripts/threshold_cost_analysis.py`
+6. `python scripts/calibration_report.py`
+7. `python scripts/eda_claims_check.py`
+
+Running these commands overwrites the tracked model and report files, and
+metrics may change slightly.
 
 ## Run
 
@@ -212,16 +239,14 @@ should be revalidated with real retention costs and outcomes.
 | 0.60 | 56,320 |
 | 0.70 | 45,980 |
 
-The production threshold should change only after these assumptions are
-validated with real retention costs and outcomes.
-
 ## Probability Calibration
 
 ![Calibration curve](reports/calibration.png)
 
-The held-out-test Brier score is `0.158078`. The aggregate diagnostic is
-over-confident; calibration should be monitored before using probabilities as
-financial forecasts.
+The held-out-test Brier score is `0.158078`. The mean predicted churn
+probability is higher than the observed churn rate, so the model over-predicts
+churn on average; calibration should be monitored before using probabilities
+as financial forecasts.
 
 ## Verified EDA Claims
 
