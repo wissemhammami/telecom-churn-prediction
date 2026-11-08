@@ -5,6 +5,8 @@ import pandas as pd
 import pytest
 from unittest.mock import MagicMock
 
+from src.serving.config import CHURN_THRESHOLD
+
 
 # Test data.
 
@@ -67,6 +69,16 @@ class TestRiskLevel:
         from src.serving.utils import get_risk_level
 
         assert get_risk_level(0.4) == "Medium"
+
+    def test_configured_threshold_never_maps_to_low(self):
+        """Probabilities at or above the churn threshold are never low risk."""
+        from src.serving.utils import get_risk_level
+
+        assert get_risk_level(CHURN_THRESHOLD) == "Medium"
+        assert get_risk_level(CHURN_THRESHOLD - 0.01) == "Low"
+        for probability in np.arange(0.0, 1.01, 0.05):
+            if probability >= CHURN_THRESHOLD:
+                assert get_risk_level(probability) != "Low"
 
 
 class TestPredictProba:

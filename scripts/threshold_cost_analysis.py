@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from src.features.preprocessing import prepare_features
 from src.serving.config import (
+    CHURN_THRESHOLD,
     MODEL_PATH,
     RANDOM_STATE,
     RAW_DATA_PATH,
@@ -78,13 +79,32 @@ def main() -> None:
     best = report.loc[report["net_benefit"].idxmax()]
     model.fit(X_train, y_train)
     test_probabilities = model.predict_proba(X_test)[:, 1]
-    test_labels = test_probabilities >= best["threshold"]
-    test_benefit = net_benefit(y_test.to_numpy(), test_probabilities, best["threshold"])
+    comparison_thresholds = [CHURN_THRESHOLD, float(best["threshold"]), 0.50]
+    comparison_rows = []
+    for threshold in comparison_thresholds:
+        test_labels = test_probabilities >= threshold
+        comparison_rows.append(
+            {
+                "threshold": threshold,
+                "precision": precision_score(y_test, test_labels, zero_division=0),
+                "recall": recall_score(y_test, test_labels, zero_division=0),
+                "net_benefit": net_benefit(
+                    y_test.to_numpy(), test_probabilities, threshold
+                ),
+            }
+        )
     os.makedirs(REPORTS_DIR, exist_ok=True)
     report.to_csv(os.path.join(REPORTS_DIR, "threshold_cost_analysis.csv"), index=False)
+    pd.DataFrame(comparison_rows).drop_duplicates("threshold").to_csv(
+        os.path.join(REPORTS_DIR, "threshold_test_comparison.csv"), index=False
+    )
     plt.figure(figsize=(7, 5))
     plt.plot(report["threshold"], report["net_benefit"], "o-")
-    plt.axvline(0.5, linestyle="--", label="Production threshold 0.5")
+    plt.axvline(
+        CHURN_THRESHOLD,
+        linestyle="--",
+        label=f"Production threshold {CHURN_THRESHOLD:.2f}",
+    )
     plt.xlabel("Threshold")
     plt.ylabel("Expected net benefit")
     plt.title("Retention Threshold Cost Analysis")
@@ -94,10 +114,16 @@ def main() -> None:
     plt.close()
     print(f"Recommended training-CV threshold: {best['threshold']:.2f}")
     print(f"Training-CV net benefit: {best['net_benefit']:.2f}")
-    print(f"Test precision: {precision_score(y_test, test_labels):.4f}")
-    print(f"Test recall: {recall_score(y_test, test_labels):.4f}")
-    print(f"Test net benefit: {test_benefit:.2f}")
-    print("Production threshold remains 0.50 until business costs are validated.")
+    print("Test-set threshold comparison:")
+    for row in comparison_rows:
+        print(
+            f"  {row['threshold']:.2f}: precision={row['precision']:.4f}, "
+            f"recall={row['recall']:.4f}, net benefit={row['net_benefit']:.2f}"
+        )
+    print(
+        f"Production threshold is {CHURN_THRESHOLD:.2f} until business costs "
+        "are validated."
+    )
 
 
 if __name__ == "__main__":

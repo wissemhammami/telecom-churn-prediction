@@ -33,6 +33,7 @@ from xgboost import XGBClassifier
 from src.features.preprocessing import prepare_features
 from src.serving.config import (
     CATEGORICAL_FEATURES,
+    CHURN_THRESHOLD,
     FEATURES_PATH,
     METADATA_PATH,
     MODEL_PATH,
@@ -150,7 +151,7 @@ def baseline(X_train, y_train, cv) -> tuple[Pipeline, dict]:
     }
 
 
-def evaluate(model, X_test, y_test, threshold=0.5) -> dict:
+def evaluate(model, X_test, y_test, threshold=CHURN_THRESHOLD) -> dict:
     """Calculate final classification metrics at a probability threshold."""
     probabilities = model.predict_proba(X_test)[:, 1]
     labels = (probabilities >= threshold).astype(int)
@@ -167,7 +168,7 @@ def threshold_analysis(model, X_test, y_test) -> pd.DataFrame:
     """Calculate precision, recall, and F1 across standard thresholds."""
     probabilities = model.predict_proba(X_test)[:, 1]
     rows = []
-    for threshold in [0.30, 0.40, 0.50, 0.60, 0.70]:
+    for threshold in [0.30, 0.35, 0.40, 0.50, 0.60, 0.70]:
         labels = (probabilities >= threshold).astype(int)
         rows.append(
             {

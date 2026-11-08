@@ -3,11 +3,11 @@
   "selection_metric": "roc_auc",
   "mean_cv_roc_auc": 0.8479002808040736,
   "cv_std": 0.010331293677727085,
-  "threshold": 0.5,
+  "threshold": 0.35,
   "random_state": 42,
   "test_roc_auc": 0.8447570332480819,
   "test_pr_auc": 0.6542135279995146,
-  "test_f1": 0.6398258977149075,
-  "test_precision": 0.5394495412844037,
-  "test_recall": 0.786096256684492
+  "test_f1": 0.5970695970695971,
+  "test_precision": 0.45403899721448465,
+  "test_recall": 0.8716577540106952
 }

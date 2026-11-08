@@ -41,6 +41,7 @@ TELECOM-CHURN-PREDICTION/
 │   ├── shap_waterfall_client_1.png
 │   ├── threshold_analysis.csv
 │   ├── threshold_cost_analysis.csv
+│   ├── threshold_test_comparison.csv
 │   └── threshold_cost_curve.png
 ├── scripts/
 │   ├── calibration_report.py
@@ -162,8 +163,8 @@ same five-fold stratified randomized search. The generated CV results are:
 
 These models are within cross-validation noise. Random Forest is retained by
 the pre-declared rule: highest mean CV ROC-AUC. The untouched-test results at
-the production threshold of 0.5 are ROC-AUC `0.8448`, PR-AUC `0.6542`, F1
-`0.6398`, precision `0.5394`, and recall `0.7861`.
+the production threshold of 0.35 are ROC-AUC `0.8448`, PR-AUC `0.6542`, F1
+`0.5971`, precision `0.4540`, and recall `0.8717`.
 
 ## Explainability
 
@@ -182,17 +183,24 @@ in deployed environments.
 
 ## Business Impact and Threshold
 
-The current production threshold remains `0.50`. A separate analysis selected
-`0.40` on training cross-validation predictions under these assumed,
-editable costs:
+The production threshold is `0.35`, chosen inside the flat `0.35`-`0.50`
+training-CV plateau to favor recall. The strict training-CV optimum is `0.40`:
+net benefit is `62,190` at `0.35`, `62,330` at `0.40`, and `61,050` at `0.50`.
 
 - Retention offer cost: `20`
 - Customer lifetime value: `300`
 - Retention success rate: `0.30`
 
-These are not operator data. The training-CV net benefit was `62,330` at
-0.40 versus `61,050` at 0.50. On the untouched test set, threshold 0.40
-produced precision `0.4832`, recall `0.8449`, and net benefit `15,360`.
+These costs are assumptions, not operator data. On the untouched test set:
+
+| Threshold | Precision | Recall | Net benefit |
+|---:|---:|---:|---:|
+| 0.35 | 0.4540 | 0.8717 | 14,980 |
+| 0.40 | 0.4832 | 0.8449 | 15,360 |
+| 0.50 | 0.5394 | 0.7861 | 15,560 |
+
+The differences between these thresholds are within noise. The threshold
+should be revalidated with real retention costs and outcomes.
 
 | Threshold | Training-CV net benefit |
 |---:|---:|
