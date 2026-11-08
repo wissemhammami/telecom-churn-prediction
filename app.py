@@ -4,9 +4,16 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
 
-from src.features.preprocessing import preparer_features
-from src.serving.config import MODEL_PATH, SEUIL_CHURN
-from src.serving.utils import niveau_risque
+from src.features.preprocessing import prepare_features
+from src.serving.config import CHURN_THRESHOLD, MODEL_PATH
+from src.serving.explain import (
+    build_readable_explanation,
+    build_summary,
+    build_waterfall_explanation,
+    explain_row,
+    get_explainer,
+)
+from src.serving.utils import get_risk_level
 
 # Page configuration.
 st.set_page_config(
@@ -34,7 +41,7 @@ except Exception as e:
 
 # Shared raw-data preparation.
 def preprocess(df: pd.DataFrame):
-    return preparer_features(df)
+    return prepare_features(df)
 
 
 # Header.
@@ -154,8 +161,8 @@ with tab1:
         try:
             X = preprocess(input_data)
             prob = float(model.predict_proba(X)[:, 1][0])
-            label = int(prob >= SEUIL_CHURN)
-            risque = niveau_risque(prob)
+            label = int(prob >= CHURN_THRESHOLD)
+            risque = get_risk_level(prob)
 
             st.divider()
             st.subheader("Results")
@@ -166,9 +173,9 @@ with tab1:
             with col_b:
                 st.metric("Prediction", "Churn" if label == 1 else "No Churn")
             with col_c:
-                if risque == "Faible":
+                if risque == "Low":
                     st.success("Low Risk")
-                elif risque == "Moyen":
+                elif risque == "Medium":
                     st.warning("Medium Risk")
                 else:
                     st.error("High Risk")
@@ -195,12 +202,12 @@ with tab2:
             try:
                 X_batch = preprocess(df_batch.copy())
                 probs = model.predict_proba(X_batch)[:, 1]
-                labels = (probs >= SEUIL_CHURN).astype(int)
+                labels = (probs >= CHURN_THRESHOLD).astype(int)
 
                 df_results = df_batch.copy()
                 df_results["Churn_Predicted"] = labels
                 df_results["Churn_Probability"] = probs.round(4)
-                df_results["Risk_Level"] = [niveau_risque(p) for p in probs]
+                df_results["Risk_Level"] = [get_risk_level(p) for p in probs]
 
                 total = len(labels)
                 nb_churners = labels.sum()
@@ -212,7 +219,9 @@ with tab2:
                 with col_b:
                     st.metric("Predicted Churners", int(nb_churners))
                 with col_c:
-                    st.metric("Churn Rate", f"{nb_churners / total:.1%}")
+                    st.metric(
+                        "Churn Rate", f"{nb_churners / total:.1%}"
+                    )
 
                 st.dataframe(
                     df_results[["Churn_Predicted", "Churn_Probability", "Risk_Level"]],
@@ -276,15 +285,12 @@ with tab3:
             try:
                 X_shap = preprocess(df_shap.copy())
                 prob = float(model.predict_proba(X_shap)[:, 1][0])
-                label = int(prob >= SEUIL_CHURN)
-                transformed = pipeline.transform(X_shap)
-                if hasattr(transformed, "toarray"):
-                    transformed = transformed.toarray()
-                feature_names = pipeline.get_feature_names_out()
-                estimator = model.named_steps.get("clf", model)
-                shap_values = shap.Explainer(estimator, transformed)(transformed)
-                if shap_values.values.ndim == 3:
-                    shap_values = shap_values[:, :, 1]
+                label = int(prob >= CHURN_THRESHOLD)
+                shap_values = explain_row(get_explainer(model), model, X_shap)
+                readable = build_readable_explanation(
+                    shap_values, list(shap_values.feature_names), X_shap
+                )
+                base_value = float(shap_values.base_values[0])
 
                 st.divider()
                 col_a, col_b = st.columns(2)
@@ -294,34 +300,34 @@ with tab3:
                     st.metric("Prediction", "Churn" if label == 1 else "No Churn")
 
                 st.markdown("**Top features driving this prediction:**")
-
-                indices = (
-                    pd.Series(shap_values.values[0])
-                    .abs()
-                    .sort_values(ascending=False)
-                    .index
-                )
                 shap_df = pd.DataFrame(
                     {
-                        "Feature": [feature_names[i] for i in indices[:10]],
-                        "SHAP Value": [shap_values.values[0][i] for i in indices[:10]],
+                        "Feature": [item["label"] for item in readable[:10]],
+                        "Value": [item["value"] for item in readable[:10]],
+                        "SHAP Value": [item["shap"] for item in readable[:10]],
+                        "Direction": [
+                            {
+                                "increases risk": "↑ increases risk",
+                                "reduces risk": "↓ reduces risk",
+                                "neutral": "– neutral",
+                            }[item["direction"]]
+                            for item in readable[:10]
+                        ],
                     }
                 ).reset_index(drop=True)
 
                 st.dataframe(shap_df, width="stretch")
+                st.info(build_summary(readable))
 
                 fig, ax = plt.subplots(figsize=(8, 5))
-                shap.plots.waterfall(
-                    shap.Explanation(
-                        values=shap_values.values[0],
-                        base_values=shap_values.base_values[0],
-                        data=transformed[0],
-                        feature_names=list(feature_names),
-                    ),
-                    max_display=10,
-                    show=False,
-                )
+                waterfall = build_waterfall_explanation(readable, base_value)
+                shap.plots.waterfall(waterfall, max_display=10, show=False)
                 st.pyplot(fig, width="stretch")
+                st.caption(
+                    "Base value is the average model score on a 100-customer "
+                    "background sample, not the real churn rate. The score is a "
+                    "risk ranking and is not a calibrated probability."
+                )
                 plt.close()
 
             except Exception as e:

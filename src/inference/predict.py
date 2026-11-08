@@ -3,13 +3,14 @@ import os
 import joblib
 import pandas as pd
 
-from src.features.preprocessing import preparer_features
+from src.features.preprocessing import prepare_features
 from src.serving.config import (
+    CHURN_THRESHOLD,
     MODEL_PATH,
     NEW_CUSTOMERS_PATH,
     PREDICTIONS_PATH,
-    SEUIL_CHURN,
 )
+from src.serving.utils import get_risk_level
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -20,66 +21,64 @@ NEW_DATA_PATH = NEW_CUSTOMERS_PATH
 OUTPUT_PATH = PREDICTIONS_PATH
 
 
-def charger_artefacts():
+def load_artifacts():
     """Load the production champion pipeline."""
     if not os.path.exists(MODEL_PATH):
-        raise FileNotFoundError(f"Artefact introuvable : {MODEL_PATH}")
+        raise FileNotFoundError(f"Artifact not found: {MODEL_PATH}")
     model = joblib.load(MODEL_PATH)
-    logger.info("Champion charge.")
+    logger.info("Champion loaded.")
     return model
 
 
-def charger_clients(path: str) -> pd.DataFrame:
+def load_customers(path: str) -> pd.DataFrame:
     """Load customer rows from a CSV file."""
     if not os.path.exists(path):
-        raise FileNotFoundError(f"Fichier introuvable : {path}")
+        raise FileNotFoundError(f"File not found: {path}")
     df = pd.read_csv(path)
-    logger.info(f"{len(df)} clients chargés.")
+    logger.info(f"{len(df)} customers loaded.")
     return df
 
 
-def preprocesser(df: pd.DataFrame) -> pd.DataFrame:
+def preprocess(df: pd.DataFrame) -> pd.DataFrame:
     """Prepare raw customer rows for the champion pipeline."""
-    logger.info("Preprocessing applique.")
-    return preparer_features(df)
+    logger.info("Preprocessing applied.")
+    return prepare_features(df)
 
 
-def predire(model, X, seuil: float = SEUIL_CHURN):
+def predict(model, X, threshold: float = CHURN_THRESHOLD):
     """Generate labels and probabilities at the selected threshold."""
-    probabilites = model.predict_proba(X)[:, 1]
-    labels = (probabilites >= seuil).astype(int)
-    logger.info(f"Prédictions générées pour {len(labels)} clients.")
-    return labels, probabilites
+    probabilities = model.predict_proba(X)[:, 1]
+    labels = (probabilities >= threshold).astype(int)
+    logger.info(f"Predictions generated for {len(labels)} customers.")
+    return labels, probabilities
 
 
-def sauvegarder(df_original: pd.DataFrame, labels, probabilites, output_path: str):
+def save_results(df_original: pd.DataFrame, labels, probabilities, output_path: str):
     """Save predictions and risk levels alongside the original rows."""
-    resultats = df_original.copy()
-    resultats["Churn_Predit"] = labels
-    resultats["Churn_Probabilite"] = probabilites.round(4)
-    resultats["Niveau_Risque"] = resultats["Churn_Probabilite"].apply(
-        lambda p: "Élevé" if p >= 0.7 else ("Moyen" if p >= 0.4 else "Faible")
-    )
+    results = df_original.copy()
+    results["Churn_Predicted"] = labels
+    results["Churn_Probability"] = probabilities.round(4)
+    results["Risk_Level"] = results["Churn_Probability"].apply(get_risk_level)
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    resultats.to_csv(output_path, index=False)
-    logger.info(f"Résultats sauvegardés : {output_path}")
+    results.to_csv(output_path, index=False)
+    logger.info(f"Results saved: {output_path}")
     total = len(labels)
-    churnes = labels.sum()
+    churners = labels.sum()
     logger.info(
-        f"Résumé : {churnes}/{total} clients à risque ({churnes / total * 100:.1f}%)"
+        f"Summary: {churners}/{total} customers at risk ({churners / total * 100:.1f}%)"
     )
-    return resultats
+    return results
 
 
 def main():
-    logger.info("Démarrage de l'inférence batch...")
-    model = charger_artefacts()
-    df_clients = charger_clients(NEW_DATA_PATH)
-    X = preprocesser(df_clients.copy())
-    labels, probs = predire(model, X)
-    resultats = sauvegarder(df_clients, labels, probs, OUTPUT_PATH)
-    print("\nRésultats :")
-    print(resultats[["Churn_Predit", "Churn_Probabilite", "Niveau_Risque"]].to_string())
+    logger.info("Starting batch inference...")
+    model = load_artifacts()
+    df_customers = load_customers(NEW_DATA_PATH)
+    X = preprocess(df_customers.copy())
+    labels, probabilities = predict(model, X)
+    results = save_results(df_customers, labels, probabilities, OUTPUT_PATH)
+    print("\nResults:")
+    print(results[["Churn_Predicted", "Churn_Probability", "Risk_Level"]].to_string())
 
 
 if __name__ == "__main__":

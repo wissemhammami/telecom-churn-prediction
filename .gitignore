@@ -41,7 +41,6 @@ data/new/
 # Logs et rapports générés
 # ===========================================
 reports/serving.log
-reports/*.png
 *.log
 
 # ===========================================
@@ -72,8 +71,3 @@ desktop.ini
 .coverage
 htmlcov/
 .pytest_cache/
-
-# ===========================================
-# Docker
-# ===========================================
-.dockerignore

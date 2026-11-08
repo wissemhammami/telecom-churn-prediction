@@ -1,0 +1,17 @@
+env/
+env1/
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.git/
+.gitignore
+data/
+notebooks/
+reports/*.log
+*.log
+.vscode/
+.idea/
+.env*
+scripts/_tmp_*

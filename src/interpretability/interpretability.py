@@ -10,7 +10,7 @@ import pandas as pd
 import seaborn as sns
 import shap
 
-from src.features.preprocessing import preparer_features
+from src.features.preprocessing import prepare_features
 from src.serving.config import FEATURES_PATH, MODEL_PATH, RAW_DATA_PATH, REPORTS_DIR
 
 matplotlib.use("Agg")
@@ -23,20 +23,20 @@ plt.rcParams["figure.dpi"] = 150
 NB_CLIENTS_SHAP = 500
 
 
-def charger_artefacts():
+def load_artifacts():
     """Load the champion, its embedded preprocessor, and feature names."""
     paths = [MODEL_PATH, FEATURES_PATH]
     for path in paths:
         if not os.path.exists(path):
-            raise FileNotFoundError(f"Artefact introuvable : {path}")
+            raise FileNotFoundError(f"Artifact not found: {path}")
     model = joblib.load(MODEL_PATH)
     return model, model.named_steps["preprocessor"], joblib.load(FEATURES_PATH)
 
 
-def charger_donnees() -> pd.DataFrame:
+def load_data() -> pd.DataFrame:
     """Load and prepare raw training rows for explanation."""
     df = pd.read_csv(RAW_DATA_PATH)
-    return preparer_features(df)
+    return prepare_features(df)
 
 
 def plot_feature_importance(model, feature_names, output_dir: str) -> None:
@@ -47,7 +47,7 @@ def plot_feature_importance(model, feature_names, output_dir: str) -> None:
     elif hasattr(estimator, "coef_"):
         importances = estimator.coef_[0]
     else:
-        logger.warning("Le champion ne fournit pas d'importances de features.")
+        logger.warning("The champion does not provide feature importances.")
         return
     importance_df = (
         pd.DataFrame({"Feature": feature_names, "Importance": abs(importances)})
@@ -63,7 +63,7 @@ def plot_feature_importance(model, feature_names, output_dir: str) -> None:
         palette="magma",
         legend=False,
     )
-    plt.title("Top 20 Features - Importance du champion")
+    plt.title("Top 20 Features - Champion Importance")
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "feature_importance.png"))
     plt.close()
@@ -99,13 +99,13 @@ def plot_shap_waterfall(shap_values, output_dir: str, nb_clients: int = 5) -> No
 
 def main():
     os.makedirs(REPORTS_DIR, exist_ok=True)
-    model, pipeline, feature_names = charger_artefacts()
-    X = charger_donnees()
+    model, pipeline, feature_names = load_artifacts()
+    X = load_data()
     X_shap = X.sample(n=min(NB_CLIENTS_SHAP, len(X)), random_state=42)
     plot_feature_importance(model, feature_names, REPORTS_DIR)
     shap_values = plot_shap_summary(model, pipeline, X_shap, REPORTS_DIR)
     plot_shap_waterfall(shap_values, REPORTS_DIR)
-    logger.info("Analyse d'interpretabilite terminee : %s", REPORTS_DIR)
+    logger.info("Interpretability analysis complete: %s", REPORTS_DIR)
 
 
 if __name__ == "__main__":

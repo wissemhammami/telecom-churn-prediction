@@ -1,156 +1,125 @@
 # Telecom Churn Prediction
 
-End-to-end machine learning project predicting customer churn for a telecom company.
-Built with scikit-learn, XGBoost, FastAPI, and Streamlit.
+[![CI](https://github.com/wissemhammami/telecom-churn-prediction/actions/workflows/ci.yml/badge.svg)](https://github.com/wissemhammami/telecom-churn-prediction/actions/workflows/ci.yml)
+
+End-to-end telecom churn prediction with scikit-learn, XGBoost, FastAPI, and
+Streamlit.
 
 ## Live Demo
 
-[Open the app](https://churn-wissem.streamlit.app)
-
----
+[Open the Streamlit app](https://churn-wissem.streamlit.app)
 
 ## Problem Statement
 
-Telecom companies lose revenue when customers cancel their subscriptions.
-This project predicts which customers are likely to churn so the business can intervene early
-and take targeted retention actions.
-
-**Dataset** : [Telco Customer Churn — Kaggle](https://www.kaggle.com/datasets/blastchar/telco-customer-churn)  
-**Target** : Binary classification — Churn (1) vs No Churn (0)  
-**Dataset size** : 7,043 customers — 21 features
-
----
-
-## Model Selection
-
-The training workflow compares Logistic Regression, Random Forest, and XGBoost
-against a DummyClassifier baseline. Each candidate is tuned with
-RandomizedSearchCV using the same 5-fold StratifiedKFold and ROC-AUC scoring.
-The champion is selected from training CV results, then evaluated once on the
-untouched test set. Final reporting includes ROC-AUC, PR-AUC, F1, precision,
-recall, and a simple threshold analysis. The selected champion is deployed by
-batch inference, FastAPI, and Streamlit.
-
----
+The project predicts which telecom customers are likely to churn so retention
+teams can prioritize early intervention. It uses the Telco Customer Churn
+dataset from [Kaggle](https://www.kaggle.com/datasets/blastchar/telco-customer-churn):
+7,043 customers, 21 raw columns, and `Churn` as the binary target.
 
 ## Project Structure
-```
-TELECOM-CHURN-PREDICTION/
-│
-├── data/
-│   ├── raw/                        # Original dataset
-│   ├── processed/                  # Preprocessed dataset
-│   └── new/                        # New customers for inference
-│
-├── models/
-│   ├── champion_model.pkl          # Selected fitted model pipeline
-│   ├── model_metadata.json          # Champion and evaluation metrics
-│   └── feature_columns.pkl         # Feature names
-│
-├── notebooks/
-│   └── eda.ipynb                   # Exploratory Data Analysis
-│
-├── reports/
-│   ├── model_comparison.csv         # CV comparison
-│   └── threshold_analysis.csv       # Test threshold analysis
-│
-├── scripts/
-│   └── check_data.py               # Data validation script
-│
-├── src/
-│   ├── data/
-│   │   └── __init__.py
-│   ├── features/
-│   │   ├── feature_engineering.py  # Feature engineering
-│   │   └── preprocessing.py        # Shared raw-data preparation
-│   ├── training/
-│   │   └── train.py                # Multi-model CV tuning and champion selection
-│   ├── inference/
-│   │   └── predict.py              # Batch inference
-│   ├── interpretability/
-│   │   └── interpretability.py     # SHAP visualizations
-│   └── serving/
-│       ├── main.py                 # FastAPI application
-│       ├── schemas.py              # Pydantic schemas
-│       ├── config.py               # Central configuration
-│       └── utils.py                # Shared utilities
-│
-├── app.py                          # Streamlit frontend
-├── Dockerfile
-├── start.sh
-├── requirements.txt
-└── README.md
-```
 
----
+```text
+TELECOM-CHURN-PREDICTION/
+├── .github/workflows/ci.yml
+├── .dockerignore
+├── app.py
+├── data/
+│   ├── new/
+│   ├── processed/
+│   └── raw/
+├── models/
+│   ├── champion_model.pkl
+│   ├── feature_columns.pkl
+│   ├── model_metadata.json
+│   └── shap_background.csv
+├── reports/
+│   ├── calibration.png
+│   ├── eda_claims.csv
+│   ├── feature_importance.png
+│   ├── model_comparison.csv
+│   ├── shap_summary.png
+│   ├── shap_waterfall_client_1.png
+│   ├── threshold_analysis.csv
+│   ├── threshold_cost_analysis.csv
+│   └── threshold_cost_curve.png
+├── scripts/
+│   ├── calibration_report.py
+│   ├── check_data.py
+│   ├── eda_claims_check.py
+│   ├── make_shap_background.py
+│   └── threshold_cost_analysis.py
+├── src/
+│   ├── features/
+│   ├── inference/
+│   ├── interpretability/
+│   ├── serving/
+│   │   ├── config.py
+│   │   ├── explain.py
+│   │   ├── main.py
+│   │   ├── schemas.py
+│   │   └── utils.py
+│   ├── tests/
+│   │   ├── test_api.py
+│   │   └── test_predict.py
+│   └── training/
+├── Dockerfile
+├── requirements.txt
+├── runtime.txt
+└── start.sh
+```
 
 ## Installation
+
+The deployment target is Python 3.12. The pinned runtime is defined in
+`runtime.txt` and the Dockerfile.
+
 ```bash
 git clone https://github.com/wissemhammami/telecom-churn-prediction.git
 cd telecom-churn-prediction
-
-Requires Python 3.12 (Streamlit Cloud and local installs fail on Python 3.14 due to shap/numba/llvmlite incompatibility).
-
 python -m venv env
 source env/bin/activate        # Windows: env\Scripts\activate
-
 pip install -r requirements.txt
 ```
 
----
+The CI workflow requires `models/champion_model.pkl` and
+`models/shap_background.csv` to remain tracked in the repository.
 
-## How to Run
+## Run
 
-**1 — Train the model**
 ```bash
-python -m src.training.train
-```
-
-**2 — Generate SHAP reports**
-```bash
-python -m src.interpretability.interpretability
-```
-
-**3 — Launch the API**
-```bash
+# FastAPI
 uvicorn src.serving.main:app --host 0.0.0.0 --port 8000 --reload
-```
-API docs available at `http://localhost:8000/docs`
 
-**4 — Launch the Streamlit app**
-```bash
+# Streamlit
 python -m streamlit run app.py
-```
-App available at `http://localhost:8501`
 
-**5 — Run tests**
-```bash
-pytest src/tests/test_predict.py -v
+# Tests
+python -m pytest src/tests -q
 ```
 
----
+The Docker image starts both services:
 
-## Docker
 ```bash
-# Build
 docker build -t churn-app .
-
-# Run
 docker run -p 8000:8000 -p 8501:8501 churn-app
 ```
 
----
+## API
 
-## API Endpoints
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/health` | Service and model status |
+| POST | `/predict` | Predict one customer |
+| POST | `/predict/batch` | Predict 1 to 1,000 customers |
+| POST | `/interpret` | Return top SHAP features |
 
-| Method | Endpoint          | Description                          |
-|--------|-------------------|--------------------------------------|
-| GET    | `/health`         | Check API status                     |
-| POST   | `/predict`        | Predict churn for a single customer  |
-| POST   | `/predict/batch`  | Predict churn for multiple customers |
-| POST   | `/interpret`      | SHAP explanation for a customer      |
+Categorical values are validated against the dataset. Invalid categories,
+missing required fields, negative numeric values, and empty batches return
+HTTP 422. If the model is unavailable, `/health` returns HTTP 503 and
+prediction endpoints return HTTP 503.
 
-**Example request**
+Example request:
+
 ```bash
 curl -X POST "http://localhost:8000/predict" \
   -H "Content-Type: application/json" \
@@ -177,75 +146,103 @@ curl -X POST "http://localhost:8000/predict" \
   }'
 ```
 
-**Example response**
-```json
-{
-  "churn_label": 1,
-  "churn_probability": 0.87,
-  "niveau_risque": "Élevé"
-}
-```
+Response fields use the English names `risk_level`, `num_churners`, and
+`churn_rate_percent`; risk values are `Low`, `Medium`, or `High`.
 
----
+## Model Selection
 
-## ML Pipeline
-```
-Raw Data
-  └── Train/Test split → test set held untouched
-    └── Shared feature preparation
-      └── 5-fold Stratified CV + RandomizedSearchCV
-        └── Logistic Regression / Random Forest / XGBoost
-          └── CV comparison → champion selection
-            └── Untouched test evaluation + threshold analysis
-              └── Champion packaging → API / Streamlit / batch / SHAP
-```
+Training compares Logistic Regression, Random Forest, and XGBoost with the
+same five-fold stratified randomized search. The generated CV results are:
 
-### Final Results
-
-The champion is selected by mean training CV ROC-AUC. The current generated
-artifacts select Random Forest.
-
-| Model | Mean CV ROC-AUC | Std |
+| Model | Mean CV ROC-AUC | Standard deviation |
 |---|---:|---:|
-| DummyClassifier | 0.5000 | 0.0000 |
 | LogisticRegression | 0.8474 | 0.0113 |
 | RandomForest | 0.8477 | 0.0100 |
 | XGBoost | 0.8469 | 0.0104 |
 
-The champion's one-time untouched-test results are ROC-AUC `0.8442`, PR-AUC
-`0.6520`, F1 `0.6414`, precision `0.5392`, and recall `0.7914`, using threshold
-`0.5`. Threshold results for `0.30`, `0.40`, `0.50`, `0.60`, and `0.70` are
-saved in `reports/threshold_analysis.csv`.
+These models are within cross-validation noise. Random Forest is retained by
+the pre-declared rule: highest mean CV ROC-AUC. The untouched-test results at
+the production threshold of 0.5 are ROC-AUC `0.8442`, PR-AUC `0.6520`, F1
+`0.6414`, precision `0.5392`, and recall `0.7914`.
 
-SHAP uses the fitted champion estimator and explains the churn class. The
-standalone report script and the FastAPI and Streamlit explanation paths work
-with linear or tree-based champions.
+## Explainability
 
----
+SHAP uses a committed 100-row background sample in
+`models/shap_background.csv`, so explanations work without the raw dataset
+in deployed environments.
 
-## Key Insights from EDA
+![SHAP summary](reports/shap_summary.png)
 
-- Contract type is the strongest predictor — month-to-month customers churn at ~43%
-- Tenure is negatively correlated with churn — new customers churn more
-- Monthly charges above $70 increase churn risk significantly
-- Fiber optic customers churn more than DSL customers
+![SHAP waterfall](reports/shap_waterfall_client_1.png)
 
----
+- The summary plot shows the global distribution of feature contributions.
+- Waterfall plots show how one customer's features move the prediction from
+  the baseline toward churn or no churn.
+- Contributions are calculated for the churn class of the saved champion.
 
-## Tech Stack
+## Business Impact and Threshold
 
-| Category          | Tools                          |
-|-------------------|--------------------------------|
-| Language          | Python 3.13                    |
-| ML                | Scikit-learn, XGBoost          |
-| Candidate models  | Logistic Regression, Random Forest, XGBoost |
-| Explainability    | SHAP                           |
-| API               | FastAPI, Pydantic, Uvicorn     |
-| Frontend          | Streamlit                      |
-| Containerization  | Docker                         |
-| Visualization     | Matplotlib, Seaborn            |
+The current production threshold remains `0.50`. A separate analysis selected
+`0.35` on training cross-validation predictions under these assumed,
+editable costs:
 
----
+- Retention offer cost: `20`
+- Customer lifetime value: `300`
+- Retention success rate: `0.30`
+
+These are not operator data. The training-CV net benefit was `62,520` at
+0.35 versus `61,430` at 0.50. On the untouched test set, threshold 0.35
+produced precision `0.4562`, recall `0.8770`, and net benefit `15,140`.
+
+| Threshold | Training-CV net benefit |
+|---:|---:|
+| 0.20 | 54,240 |
+| 0.30 | 61,010 |
+| 0.35 | 62,520 |
+| 0.40 | 62,180 |
+| 0.50 | 61,430 |
+| 0.60 | 55,850 |
+| 0.70 | 45,080 |
+
+The production threshold should change only after these assumptions are
+validated with real retention costs and outcomes.
+
+## Probability Calibration
+
+![Calibration curve](reports/calibration.png)
+
+The held-out-test Brier score is `0.157964`. The aggregate diagnostic is
+over-confident; calibration should be monitored before using probabilities as
+financial forecasts.
+
+## Verified EDA Claims
+
+The raw dataset verifies:
+
+- Overall churn rate: `26.54%`.
+- Month-to-month churn: `42.71%`; one-year: `11.27%`; two-year: `2.83%`.
+- Fiber optic churn: `41.89%`; DSL: `18.96%`; no internet: `7.40%`.
+- Churn above $70 monthly charges: `35.36%`; at or below $70: `17.40%`.
+- Mean tenure is `17.98` months for churners and `37.57` for non-churners.
+
+These measurements support the original directional claims, with the values
+recorded in `reports/eda_claims.csv`.
+
+## Limitations and Next Steps
+
+- The source is a public Kaggle dataset, not operator production data.
+- Results use one train/test split; broader validation is still needed.
+- The model pickle is tied to scikit-learn `1.8.0`; retrain when upgrading
+  the model-serving dependency.
+- Business costs and retention success are assumptions, not measured outcomes.
+- The model is not probability-calibrated for financial planning.
+- There is no production drift monitoring yet.
+- Batch inference, the API, and Streamlit share the same preprocessing code.
+- Streamlit intentionally loads the model directly instead of calling the API
+  to keep the free-tier demo simple.
+- A Tunisie Telecom deployment would first require a prepaid/postpaid scope,
+  an operational churn definition, and call-detail-record features.
+- Validate the threshold and monitor drift with real customer outcomes.
 
 ## Author
 

@@ -2,10 +2,10 @@
 
 import pandas as pd
 
-from src.features.feature_engineering import appliquer_feature_engineering
+from src.features.feature_engineering import apply_feature_engineering
 
 
-def preparer_features(df: pd.DataFrame) -> pd.DataFrame:
+def prepare_features(df: pd.DataFrame) -> pd.DataFrame:
     """Clean raw customer rows and apply shared feature engineering."""
     result = df.copy()
     for column in ["customerID", "Churn"]:
@@ -13,4 +13,4 @@ def preparer_features(df: pd.DataFrame) -> pd.DataFrame:
             result = result.drop(columns=[column])
     if "TotalCharges" in result.columns:
         result["TotalCharges"] = pd.to_numeric(result["TotalCharges"], errors="coerce")
-    return appliquer_feature_engineering(result)
+    return apply_feature_engineering(result)

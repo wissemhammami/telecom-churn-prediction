@@ -1,21 +1,23 @@
 """Create derived customer features shared by training and inference."""
 
+import numpy as np
 import pandas as pd
 
 
-def ajouter_charge_moyenne(df: pd.DataFrame) -> pd.DataFrame:
+def add_average_charge(df: pd.DataFrame) -> pd.DataFrame:
     """Add average monthly charges while handling zero-tenure customers."""
-    df["ChargesMoyennes"] = df.apply(
-        lambda row: row["TotalCharges"] / row["tenure"] if row["tenure"] > 0 else 0,
-        axis=1,
+    df["ChargesMoyennes"] = np.where(
+        df["tenure"] > 0,
+        df["TotalCharges"] / df["tenure"].replace(0, np.nan),
+        0,
     )
     return df
 
 
-def ajouter_segment_tenure(df: pd.DataFrame) -> pd.DataFrame:
+def add_tenure_segment(df: pd.DataFrame) -> pd.DataFrame:
     """Add a tenure segment for new, intermediate, and loyal customers."""
 
-    def segmenter(tenure):
+    def segment_tenure(tenure):
         if tenure <= 12:
             return "Nouveau"
         elif tenure <= 36:
@@ -23,11 +25,11 @@ def ajouter_segment_tenure(df: pd.DataFrame) -> pd.DataFrame:
         else:
             return "Fidele"
 
-    df["SegmentTenure"] = df["tenure"].apply(segmenter)
+    df["SegmentTenure"] = df["tenure"].apply(segment_tenure)
     return df
 
 
-def ajouter_nb_services(df: pd.DataFrame) -> pd.DataFrame:
+def add_num_services(df: pd.DataFrame) -> pd.DataFrame:
     """Add the number of optional services marked as Yes."""
     services = [
         "OnlineSecurity",
@@ -38,28 +40,28 @@ def ajouter_nb_services(df: pd.DataFrame) -> pd.DataFrame:
         "StreamingMovies",
     ]
 
-    df["NbServices"] = df[services].apply(lambda row: (row == "Yes").sum(), axis=1)
+    df["NbServices"] = (df[services] == "Yes").sum(axis=1)
     return df
 
 
-def ajouter_sans_internet(df: pd.DataFrame) -> pd.DataFrame:
+def add_no_internet(df: pd.DataFrame) -> pd.DataFrame:
     """Add an indicator for customers without internet service."""
     df["SansInternet"] = (df["InternetService"] == "No").astype(int)
     return df
 
 
-def ajouter_contrat_long(df: pd.DataFrame) -> pd.DataFrame:
+def add_long_contract(df: pd.DataFrame) -> pd.DataFrame:
     """Add an indicator for one-year and two-year contracts."""
     df["ContratLong"] = (df["Contract"].isin(["One year", "Two year"])).astype(int)
     return df
 
 
-def appliquer_feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
+def apply_feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
     """Apply all derived-feature transformations to a customer DataFrame."""
-    df = ajouter_charge_moyenne(df)
-    df = ajouter_segment_tenure(df)
-    df = ajouter_nb_services(df)
-    df = ajouter_sans_internet(df)
-    df = ajouter_contrat_long(df)
+    df = add_average_charge(df)
+    df = add_tenure_segment(df)
+    df = add_num_services(df)
+    df = add_no_internet(df)
+    df = add_long_contract(df)
 
     return df

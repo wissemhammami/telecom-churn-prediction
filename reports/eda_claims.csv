@@ -1,0 +1,12 @@
+metric,group,value
+overall_churn_rate,All,0.2653698707936959
+churn_rate_by_Contract,Month-to-month,0.4270967741935484
+churn_rate_by_Contract,One year,0.11269517990495587
+churn_rate_by_Contract,Two year,0.02831858407079646
+churn_rate_by_InternetService,DSL,0.1895910780669145
+churn_rate_by_InternetService,Fiber optic,0.4189276485788114
+churn_rate_by_InternetService,No,0.07404980340760157
+churn_rate_by_monthly_charges,<=70,0.17398843930635838
+churn_rate_by_monthly_charges,>70,0.35361428970136755
+mean_tenure_by_churn,No,37.56996521066873
+mean_tenure_by_churn,Yes,17.979133226324237

@@ -1,4 +1,7 @@
-"""Train, compare, evaluate, and package churn models."""
+"""Train, compare, evaluate, and package churn models.
+
+Metrics reported on the untouched test set must not be used to pick a threshold.
+"""
 
 import json
 import logging
@@ -27,7 +30,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from xgboost import XGBClassifier
 
-from src.features.preprocessing import preparer_features
+from src.features.preprocessing import prepare_features
 from src.serving.config import (
     CATEGORICAL_FEATURES,
     FEATURES_PATH,
@@ -57,18 +60,21 @@ NUMERIC_FINAL = NUMERIC_FEATURES + [
 CATEGORICAL_FINAL = CATEGORICAL_FEATURES + ["SegmentTenure"]
 
 
-def charger_donnees() -> tuple[pd.DataFrame, pd.Series]:
+def load_data() -> tuple[pd.DataFrame, pd.Series]:
     """Load raw data and prepare features without fitting transformations."""
     df = pd.read_csv(RAW_DATA_PATH)
     if TARGET_COL not in df.columns:
-        raise ValueError(f"Colonne cible absente : {TARGET_COL}")
-    y = df[TARGET_COL].map({"Yes": 1, "No": 0}).fillna(df[TARGET_COL]).astype(int)
-    X = preparer_features(df)
-    logger.info("Donnees chargees : %s lignes, %s features brutes.", len(X), X.shape[1])
+        raise ValueError(f"Target column missing: {TARGET_COL}")
+    labels = set(df[TARGET_COL].dropna().unique())
+    if not labels.issubset({"Yes", "No"}):
+        raise ValueError(f"Unexpected target labels: {sorted(labels - {'Yes', 'No'})}")
+    y = df[TARGET_COL].map({"Yes": 1, "No": 0}).astype(int)
+    X = prepare_features(df)
+    logger.info("Data loaded: %s rows, %s raw features.", len(X), X.shape[1])
     return X, y
 
 
-def construire_preprocesseur() -> ColumnTransformer:
+def build_preprocessor() -> ColumnTransformer:
     """Build the fold-fitted numeric and categorical preprocessor."""
     return ColumnTransformer(
         [
@@ -99,9 +105,9 @@ def construire_preprocesseur() -> ColumnTransformer:
     )
 
 
-def construire_pipeline(classifier) -> Pipeline:
+def build_pipeline(classifier) -> Pipeline:
     """Build a preprocessing and classifier pipeline."""
-    return Pipeline([("preprocessor", construire_preprocesseur()), ("clf", classifier)])
+    return Pipeline([("preprocessor", build_preprocessor()), ("clf", classifier)])
 
 
 def tune_model(
@@ -109,7 +115,7 @@ def tune_model(
 ) -> tuple[Pipeline, dict]:
     """Tune one candidate model using randomized stratified cross-validation."""
     search = RandomizedSearchCV(
-        construire_pipeline(classifier),
+        build_pipeline(classifier),
         param_distributions={f"clf__{key}": value for key, value in parameters.items()},
         n_iter=15,
         cv=cv,
@@ -130,7 +136,7 @@ def tune_model(
 
 def baseline(X_train, y_train, cv) -> tuple[Pipeline, dict]:
     """Evaluate and fit the most-frequent-class baseline."""
-    model = construire_pipeline(DummyClassifier(strategy="most_frequent"))
+    model = build_pipeline(DummyClassifier(strategy="most_frequent"))
     scores = []
     for train_index, valid_index in cv.split(X_train, y_train):
         model.fit(X_train.iloc[train_index], y_train.iloc[train_index])
@@ -175,7 +181,7 @@ def threshold_analysis(model, X_test, y_test) -> pd.DataFrame:
 
 
 def main():
-    X, y = charger_donnees()
+    X, y = load_data()
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
     )
@@ -228,7 +234,19 @@ def main():
     comparison = pd.DataFrame(rows)
     os.makedirs(REPORTS_DIR, exist_ok=True)
     comparison.to_csv(REPORT_SAVE_PATH, index=False)
-    champion_name = comparison.iloc[comparison["cv_mean_roc_auc"].idxmax()]["model"]
+    best_index = comparison["cv_mean_roc_auc"].idxmax()
+    champion_name = comparison.loc[best_index, "model"]
+    ordered_scores = comparison["cv_mean_roc_auc"].sort_values(ascending=False)
+    if len(ordered_scores) > 1:
+        second_score = ordered_scores.iloc[1]
+        best_std = comparison.loc[best_index, "cv_std_roc_auc"]
+        if ordered_scores.iloc[0] - second_score < best_std:
+            logger.warning(
+                "Top models are statistically tied: score difference %.4f "
+                "is below the best model CV standard deviation %.4f.",
+                ordered_scores.iloc[0] - second_score,
+                best_std,
+            )
     champion = models[champion_name]
     metrics = evaluate(champion, X_test, y_test)
     thresholds = threshold_analysis(champion, X_test, y_test)
@@ -252,9 +270,9 @@ def main():
     }
     with open(METADATA_PATH, "w", encoding="utf-8") as file:
         json.dump(metadata, file, indent=2)
-    logger.info("Champion selectionne : %s", champion_name)
-    logger.info("Test metrics : %s", metrics)
-    logger.info("Threshold analysis :\n%s", thresholds.to_string(index=False))
+    logger.info("Selected champion: %s", champion_name)
+    logger.info("Test metrics: %s", metrics)
+    logger.info("Threshold analysis:\n%s", thresholds.to_string(index=False))
 
 
 if __name__ == "__main__":

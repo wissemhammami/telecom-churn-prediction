@@ -14,12 +14,15 @@ MODELS_DIR = os.path.join(BASE_DIR, "models")
 MODEL_PATH = os.path.join(MODELS_DIR, "champion_model.pkl")
 FEATURES_PATH = os.path.join(MODELS_DIR, "feature_columns.pkl")
 METADATA_PATH = os.path.join(MODELS_DIR, "model_metadata.json")
+BACKGROUND_PATH = os.path.join(MODELS_DIR, "shap_background.csv")
 
 REPORTS_DIR = os.path.join(BASE_DIR, "reports")
 
 # ML settings.
 TARGET_COL = "Churn"
-SEUIL_CHURN = 0.5
+CHURN_THRESHOLD = 0.5
+RISK_MEDIUM_THRESHOLD = 0.4
+RISK_HIGH_THRESHOLD = 0.7
 RANDOM_STATE = 42
 TEST_SIZE = 0.2
 

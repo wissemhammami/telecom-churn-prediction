@@ -1,39 +1,27 @@
-"""Shared serving helpers for preprocessing, thresholds, and risk labels."""
+"""Shared serving helpers for thresholds and risk labels."""
 
 import logging
 
-import numpy as np
-import pandas as pd
+from src.serving.config import (
+    CHURN_THRESHOLD,
+    LOG_LEVEL,
+    RISK_HIGH_THRESHOLD,
+    RISK_MEDIUM_THRESHOLD,
+)
 
-from src.features.preprocessing import preparer_features
-from src.serving.config import LOG_FORMAT, LOG_LEVEL, SEUIL_CHURN
-
-logging.basicConfig(level=getattr(logging, LOG_LEVEL), format=LOG_FORMAT)
 logger = logging.getLogger(__name__)
 
 
-def preprocesser_client(data: dict, pipeline) -> np.ndarray:
-    """Prepare one raw customer and apply the fitted preprocessing pipeline."""
-    transformed = pipeline.transform(preparer_features(pd.DataFrame([data])))
-    return transformed.toarray() if hasattr(transformed, "toarray") else transformed
-
-
-def preprocesser_batch(df: pd.DataFrame, pipeline) -> np.ndarray:
-    """Prepare raw customers and apply the fitted preprocessing pipeline."""
-    transformed = pipeline.transform(preparer_features(df))
-    return transformed.toarray() if hasattr(transformed, "toarray") else transformed
-
-
-def predire_proba(model, X, seuil: float = SEUIL_CHURN) -> tuple:
+def predict_proba_with_threshold(model, X, threshold: float = CHURN_THRESHOLD) -> tuple:
     """Return binary labels and churn probabilities at the configured threshold."""
     probabilities = model.predict_proba(X)[:, 1]
-    return (probabilities >= seuil).astype(int), probabilities
+    return (probabilities >= threshold).astype(int), probabilities
 
 
-def niveau_risque(probabilite: float) -> str:
-    """Convert a churn probability into Faible, Moyen, or Élevé."""
-    if probabilite >= 0.7:
-        return "Élevé"
-    if probabilite >= 0.4:
-        return "Moyen"
-    return "Faible"
+def get_risk_level(probability: float) -> str:
+    """Convert a churn probability into Low, Medium, or High."""
+    if probability >= RISK_HIGH_THRESHOLD:
+        return "High"
+    if probability >= RISK_MEDIUM_THRESHOLD:
+        return "Medium"
+    return "Low"

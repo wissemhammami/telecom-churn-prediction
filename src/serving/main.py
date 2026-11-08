@@ -2,19 +2,32 @@ import logging
 
 import joblib
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 
-from src.serving.config import MODEL_PATH, SEUIL_CHURN
-from src.features.preprocessing import preparer_features
+from src.features.preprocessing import prepare_features
+from src.serving.config import (
+    CHURN_THRESHOLD,
+    LOG_FORMAT,
+    LOG_LEVEL,
+    MODEL_PATH,
+)
+from src.serving.explain import (
+    build_readable_explanation,
+    build_summary,
+    explain_row,
+    get_explainer,
+)
 from src.serving.schemas import (
     BatchCustomerInput,
     BatchPredictionOutput,
     CustomerInput,
     PredictionOutput,
 )
-from src.serving.utils import niveau_risque
+from src.serving.utils import get_risk_level
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=getattr(logging, LOG_LEVEL), format=LOG_FORMAT)
 
 app = FastAPI(
     title="Telecom Churn Prediction API",
@@ -26,27 +39,34 @@ try:
     model = joblib.load(MODEL_PATH)
     pipeline = model.named_steps["preprocessor"]
     logger.info("Model and pipeline loaded successfully.")
-except Exception as e:
-    logger.error("Startup error: %s", e)
+except Exception:
+    logger.exception("Startup error")
     model = None
     pipeline = None
 
 
 def preprocess(data: dict):
     """Prepare one raw customer for the loaded champion pipeline."""
-    return preparer_features(pd.DataFrame([data]))
+    return prepare_features(pd.DataFrame([data]))
 
 
 def predict_one(data: dict) -> PredictionOutput:
     """Return a prediction for one raw customer."""
     X = preprocess(data)
     prob = float(model.predict_proba(X)[:, 1][0])
-    label = int(prob >= SEUIL_CHURN)
+    label = int(prob >= CHURN_THRESHOLD)
     return PredictionOutput(
         churn_label=label,
         churn_probability=round(prob, 4),
-        niveau_risque=niveau_risque(prob),
+        risk_level=get_risk_level(prob),
     )
+
+
+def get_model():
+    """Return the loaded model or raise a service-unavailable error."""
+    if model is None or pipeline is None:
+        raise HTTPException(status_code=503, detail="Model not loaded.")
+    return model
 
 
 @app.get("/")
@@ -58,75 +78,70 @@ def root():
 @app.get("/health")
 def health():
     """Report whether the champion and its preprocessor are loaded."""
-    return {
+    response = {
         "model_loaded": model is not None,
         "pipeline_loaded": pipeline is not None,
     }
+    if model is None or pipeline is None:
+        return JSONResponse(status_code=503, content=response)
+    return response
 
 
 @app.post("/predict", response_model=PredictionOutput)
-def predict(customer: CustomerInput):
-    if model is None or pipeline is None:
-        raise HTTPException(status_code=503, detail="Model not loaded.")
+def predict(customer: CustomerInput, _model=Depends(get_model)):
     try:
         result = predict_one(customer.model_dump())
         logger.info(
             "Prediction: label=%s prob=%s", result.churn_label, result.churn_probability
         )
         return result
-    except Exception as e:
-        logger.error("Prediction error: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.exception("Prediction error")
+        raise HTTPException(status_code=500, detail="Internal prediction error")
 
 
 @app.post("/predict/batch", response_model=BatchPredictionOutput)
-def predict_batch(batch: BatchCustomerInput):
-    if model is None or pipeline is None:
-        raise HTTPException(status_code=503, detail="Model not loaded.")
+def predict_batch(batch: BatchCustomerInput, _model=Depends(get_model)):
     try:
         results = [predict_one(c.model_dump()) for c in batch.customers]
         total = len(results)
-        nb_churners = sum(r.churn_label for r in results)
+        num_churners = sum(r.churn_label for r in results)
         logger.info("Batch: %s clients processed.", total)
         return BatchPredictionOutput(
             results=results,
             total=total,
-            nb_churners=nb_churners,
-            taux_churn=round(nb_churners / total * 100, 2),
+            num_churners=num_churners,
+            churn_rate_percent=round(num_churners / total * 100, 2),
         )
-    except Exception as e:
-        logger.error("Batch error: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.exception("Batch error")
+        raise HTTPException(status_code=500, detail="Internal prediction error")
 
 
 @app.post("/interpret")
-def interpret(customer: CustomerInput, top_n: int = 5):
+def interpret(
+    customer: CustomerInput, top_n: int = 5, _model=Depends(get_model)
+):
     """Return the top SHAP features for one customer."""
-    if model is None or pipeline is None:
-        raise HTTPException(status_code=503, detail="Model not loaded.")
     try:
-        import shap
-
         X = preprocess(customer.model_dump())
         result = predict_one(customer.model_dump())
-        transformed = pipeline.transform(X)
-        if hasattr(transformed, "toarray"):
-            transformed = transformed.toarray()
-        estimator = model.named_steps.get("clf", model)
-        feature_names = pipeline.get_feature_names_out()
-        shap_values = shap.Explainer(estimator, transformed)(transformed)
-        if shap_values.values.ndim == 3:
-            shap_values = shap_values[:, :, 1]
-        shap_dict = dict(zip(feature_names, shap_values.values[0]))
+        shap_values = explain_row(get_explainer(model), model, X)
+        shap_dict = dict(zip(shap_values.feature_names, shap_values.values[0]))
         top_features = dict(
             sorted(shap_dict.items(), key=lambda x: abs(x[1]), reverse=True)[:top_n]
         )
+        readable = build_readable_explanation(
+            shap_values, list(shap_values.feature_names), X
+        )[:top_n]
         return {
             "churn_label": result.churn_label,
             "churn_probability": result.churn_probability,
-            "niveau_risque": result.niveau_risque,
+            "risk_level": result.risk_level,
             "top_features": {k: round(float(v), 4) for k, v in top_features.items()},
+            "summary": build_summary(readable),
+            "explanation": readable,
         }
-    except Exception as e:
-        logger.error("Interpret error: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.exception("Interpret error")
+        raise HTTPException(status_code=500, detail="Internal prediction error")
